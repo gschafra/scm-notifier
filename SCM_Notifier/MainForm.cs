@@ -933,7 +933,7 @@ namespace pocorall.SCM_Notifier
 
 			int intervalMs = folders.FindNextStatusUpdateTimeMs (formIsActive);
 
-			if ((intervalMs > 333) && (ScmRepository.svnFolderProcesses.Count > 0))
+			if ((intervalMs > 333) && (ScmRepository.scmFolderProcesses.Count > 0))
 				intervalMs = 333;	// Wait commit process(es) finish at least 3 times per second
 
 			statusUpdateTimer.Interval = intervalMs == 0 ? 1 : intervalMs;
@@ -1004,9 +1004,9 @@ namespace pocorall.SCM_Notifier
 						bool skipUpdateStatus = false;
 
 						// Check commit and update processes for finishing
-						for (int i = 0; i < ScmRepository.svnFolderProcesses.Count; i++)
+						for (int i = 0; i < ScmRepository.scmFolderProcesses.Count; i++)
 						{
-                            var sfp = (ScmRepositoryProcess)ScmRepository.svnFolderProcesses[i];
+                            var sfp = (ScmRepositoryProcess)ScmRepository.scmFolderProcesses[i];
 
 							if (sfp.process.HasExited)
 							{
@@ -1014,7 +1014,7 @@ namespace pocorall.SCM_Notifier
 									SafeInvoke (new ShowUpdateErrorsMethod (ShowUpdateErrors), new object[] {sfp}, Int32.MaxValue);
 
 								UpdateFolderStatus (sfp.repository);
-                                ScmRepository.svnFolderProcesses.RemoveAt(i--);
+                                ScmRepository.scmFolderProcesses.RemoveAt(i--);
 							}
 							else if ((folder.Path == sfp.repository.Path) && sfp.isUpdateCommand)
 							{

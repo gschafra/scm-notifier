@@ -52,9 +52,26 @@ namespace pocorall.SCM_Notifier
             return false;
         }
 
-        public GitRepository(string path) : base("Git", path, ScmRepository.PathType.Directory)
+        public GitRepository(string path, PathType type = ScmRepository.PathType.Directory) : base("Git", path, type)
         {
             
+        }
+
+        protected override int GetRepositoryRevision(string binaryPath, string path, string arg)
+        {
+            string arguments = String.Format("info --non-interactive --xml \"{0}\" -r {1}", path, arg);
+        ExecuteResult er = ExecuteProcess(binaryPath, path, arguments, true, false);
+
+            try
+            {
+                SvnXml.Create(er.processOutput);
+                SvnXml.ParseXmlForStatus();
+                return Convert.ToInt32(SvnXml.GetValue("revision"));
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         public override int GetRepositoryHeadRevision()
@@ -138,7 +155,7 @@ namespace pocorall.SCM_Notifier
                     arguments = String.Format("/command:commit /path:\"{0}\" /notempfile", Path);
             }
             er = ExecuteProcess(Config.GitUIPath, null, arguments, false, false);
-            svnFolderProcesses.Add(new ScmRepositoryProcess(this, er.process, false));
+            scmFolderProcesses.Add(new ScmRepositoryProcess(this, er.process, false));
         }
 
         private string ResolveCurrentBranchName(string data)
@@ -184,7 +201,7 @@ namespace pocorall.SCM_Notifier
 
             try
             {
-                ExecuteResult er = ExecuteProcess(Config.GitPath, path,"fetch --all --dry-run -v", true, true);
+                ExecuteResult er = ExecuteProcess(Config.GitPath, path, "fetch --all --dry-run -v", true, true);
                 if (er.processError.Contains("Could not fetch"))
                 {
                     return new ScmRepositoryStatusEx() { status = ScmRepositoryStatus.Error };
@@ -247,15 +264,14 @@ namespace pocorall.SCM_Notifier
         public override void BeginUpdateSilently()
         {
             // Skip this folder if update or commit is in progress
-            foreach (ScmRepositoryProcess sp in svnFolderProcesses)
+            foreach (ScmRepositoryProcess sp in scmFolderProcesses)
                 if (sp.repository.Path == Path)
                     return;
 
-            updateRevision = GetRepositoryCommitedRevision();
-            string arguments = String.Format("update --non-interactive \"{0}\"", Path);
-            ExecuteResult er = ExecuteProcess(Config.GitPath, null, arguments, false, false);
-            Config.WriteLog("Svn", arguments);
-            svnFolderProcesses.Add(new ScmRepositoryProcess(this, er.process, true));
+            // updateRevision = GetRepositoryCommitedRevision();
+            ExecuteResult er = ExecuteProcess(Config.GitPath, Path, "pull --all", false, false);
+            Config.WriteLog("Git", String.Format("pull -all \"{0}\"", Path));
+            scmFolderProcesses.Add(new ScmRepositoryProcess(this, er.process, true));
         }
     }
 }

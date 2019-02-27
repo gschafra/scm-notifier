@@ -120,13 +120,13 @@ namespace pocorall.SCM_Notifier
 
         public static ScmRepository create(string path)
         {
-            if (Directory.Exists(path + @"\.svn") || Directory.Exists(path + @"\_svn"))
+            if (SvnRepository.IsSvnRepositoryDir(path))
             {
                 return new SvnRepository(path, ScmRepository.PathType.Directory);
             }
             if (GitRepository.IsGitRepositoryDir(path))
             {
-                return new GitRepository(path);
+                return new GitRepository(path, ScmRepository.PathType.Directory);
             }
             return null;
         }
@@ -196,9 +196,9 @@ namespace pocorall.SCM_Notifier
             public string processOutput;
         }
 
-        public delegate void SvnErrorAddedHandler(string path, string error);
+        public delegate void ScmErrorAddedHandler(string path, string error);
 
-        public static event SvnErrorAddedHandler ErrorAdded;
+        public static event ScmErrorAddedHandler ErrorAdded;
 
         protected static void OnErrorAdded(string path, string error)
         {
@@ -206,7 +206,7 @@ namespace pocorall.SCM_Notifier
             if (handler != null) handler(path, error);
         }
 
-        public static ArrayList svnFolderProcesses = ArrayList.Synchronized(new ArrayList());
+        public static ArrayList scmFolderProcesses = ArrayList.Synchronized(new ArrayList());
         private static Process backgroundProcess;
 
         protected static ExecuteResult ExecuteProcess(string executionFile, string workingPath, string arguments, bool waitForExit, bool lowPriority)
@@ -292,22 +292,7 @@ namespace pocorall.SCM_Notifier
         }
         // TODO: Optimize speed; join GetRepositoryHeadRevision and GetRepositoryCommitedRevision functions into one:
         // void int GetRepositoryRevisions (string path, out int headRevision, out int committedRevision)
-        protected static int GetRepositoryRevision(string binaryPath, string path, string arg)
-        {
-            string arguments = String.Format("info --non-interactive --xml \"{0}\" -r {1}", path, arg);
-            ExecuteResult er = ExecuteProcess(binaryPath, path, arguments, true, false);
-
-            try
-            {
-                SvnXml.Create(er.processOutput);
-                SvnXml.ParseXmlForStatus();
-                return Convert.ToInt32(SvnXml.GetValue("revision"));
-            }
-            catch
-            {
-                return 0;
-            }
-        }
+        abstract protected int GetRepositoryRevision(string binaryPath, string path, string arg);
 
         abstract public int GetRepositoryHeadRevision();
 
