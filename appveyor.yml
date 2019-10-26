@@ -1,0 +1,37 @@
+version: 0.2.{build}
+configuration: Release
+platform: Any CPU
+os: Visual Studio 2017
+install:
+  - choco install nsis
+  - appveyor DownloadFile http://nsis.sourceforge.net/mediawiki/images/1/18/NsProcess.zip
+  - 7z e -o"C:\Program Files (x86)\NSIS\Include" NsProcess.zip Include\*.nsh
+  - 7z e -o"C:\Program Files (x86)\NSIS\Plugins\x86-ansi" NsProcess.zip Plugin\*.dll
+  - set PATH="C:\Program Files (x86)\NSIS";%PATH%
+before_build:
+  - nuget restore
+after_build:
+  - Installer\MakeInstallers.bat
+artifacts:
+  - path: Installer\Target\*.exe
+build:
+  project: SCM_Notifier.sln
+  parallel: true
+  verbosity: minimal
+assembly_info:
+  patch: true
+  file: SCM_Notifier\AssemblyInfo.cs
+  assembly_version: '{version}'
+  assembly_file_version: '{version}'
+  assembly_informational_version: '{version}-rc1'
+deploy:
+  description: ''
+  provider: GitHub
+  auth_token:
+    secure: 2bc9569893765949648ebfe3c80fbaa3b7281ddf
+  artifact: /Installer\\Target\\setup-.*\.exe/
+  draft: false
+  prerelease: false
+  on:
+    branch: master 
+    APPVEYOR_REPO_TAG: true
