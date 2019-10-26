@@ -100,7 +100,7 @@ namespace pocorall.SCM_Notifier
 
         private string scmType;
 
-        public ScmRepository(string scmtype, string path, PathType type)
+        protected ScmRepository(string scmtype, string path, PathType type)
         {
             Path = DeserializePath(path);
             origPath = path;
