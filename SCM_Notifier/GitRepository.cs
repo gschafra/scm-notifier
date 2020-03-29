@@ -245,7 +245,7 @@ namespace pocorall.SCM_Notifier
                 string line;
                 while ((line = sr.ReadLine()) != null)
                 {
-                    if (line.StartsWith("From")) continue;
+                    if (line.StartsWith("From") || line.StartsWith("Fetching") || line.StartsWith("POST")) continue;
                     if (!regexUpToDate.IsMatch(line)) return true;
                 }
             }
