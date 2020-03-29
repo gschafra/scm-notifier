@@ -326,9 +326,13 @@ namespace pocorall.SCM_Notifier
                 if (sfp.isUpdateCommand && (line.Length > 1))
                 {
                     if (line.StartsWith("C ") || line.StartsWith("svn"))
+                    {
                         sfp.updateError = true;
+                    }
                     else if (line.StartsWith("Skipped "))
+                    {
                         sfp.updateError = true;
+                    }
                 }
             }
 
@@ -336,7 +340,9 @@ namespace pocorall.SCM_Notifier
             {
                 sfp.processOutput.Add(sfp.process.StandardError.ReadLine());
                 if (sfp.isUpdateCommand)
+                {
                     sfp.updateError = true;
+                }
             }
         }
 
@@ -412,16 +418,25 @@ namespace pocorall.SCM_Notifier
         public bool ContainsPath(string path)
         {
             foreach (ScmRepository f in list)
+            {
                 if (f.Path == path)
+                {
                     return true;
+                }
+            }
+
             return false;
         }
 
         public bool ContainsStatus(ScmRepositoryStatus status)
         {
             foreach (ScmRepository f in list)
+            {
                 if (f.Status == status && !f.Disable)
+                {
                     return true;
+                }
+            }
 
             return false;
         }
@@ -448,7 +463,10 @@ namespace pocorall.SCM_Notifier
 
         public int FindNextStatusUpdateTimeMs(bool formIsActive)
         {
-            if (list.Count == 0) return 3000;							// Return just some good value
+            if (list.Count == 0)
+            {
+                return 3000;                          // Return just some good value
+            }
 
             DateTime minNextTime = DateTime.MaxValue;
             DateTime now = DateTime.Now;
@@ -459,10 +477,14 @@ namespace pocorall.SCM_Notifier
                 DateTime nextTime = folder.StatusUpdateTime + ts;
 
                 if (nextTime <= now)
+                {
                     return 0;
+                }
 
                 if (nextTime < minNextTime)
+                {
                     minNextTime = nextTime;
+                }
             }
 
             return (int)(minNextTime - now).TotalMilliseconds;
