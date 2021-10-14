@@ -194,15 +194,20 @@ namespace pocorall.SCM_Notifier
             try
             {
                 ExecuteResult er = ExecuteProcess(Config.GitPath, path, "fetch --all --dry-run -v", true, true);
-                if (er.processError.Contains("Could not fetch"))
+
+                // Strip info: detecting host provider from process output
+                string processError = Regex.Replace(er.processError, @"info:.+\n", "", RegexOptions.IgnoreCase);
+
+                if (processError.Contains("Could not fetch"))
                 {
                     return new ScmRepositoryStatusEx() { status = ScmRepositoryStatus.Error };
                 }
 
                 ScmRepositoryStatusEx result = new ScmRepositoryStatusEx();
-                result.branchName = ResolveCurrentBranchName(er.processError);
 
-                bool needUpdate = this.IsNeedUpdate(er.processError);
+                result.branchName = ResolveCurrentBranchName(processError);
+
+                bool needUpdate = this.IsNeedUpdate(processError);
 
                 string arguments = String.Format("status -u \"{0}\"", path);
                 er = ExecuteProcess(Config.GitPath, path, arguments, true, true);
