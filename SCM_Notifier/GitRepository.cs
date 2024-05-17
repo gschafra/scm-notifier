@@ -254,7 +254,7 @@ namespace pocorall.SCM_Notifier
                 string line;
                 while ((line = sr.ReadLine()) != null)
                 {  
-                    if (line.StartsWith("From")) continue;
+                    if (line.StartsWith("From") || line.StartsWith("POST git-upload-pack")) continue;
                     if (!regexUpToDate.IsMatch(line)) return true;
                 }
             }
