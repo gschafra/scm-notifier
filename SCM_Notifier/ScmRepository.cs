@@ -218,6 +218,12 @@ namespace pocorall.SCM_Notifier
         protected static ExecuteResult ExecuteProcess(string executionFile, string workingPath, string arguments, bool waitForExit, bool lowPriority)
         {
             SetEnvironmentVariable();
+
+            ExecuteResult er = new ExecuteResult();
+
+            string errOut = null;
+            string stdOut = null;
+
             ProcessStartInfo psi = new ProcessStartInfo
             {
                 FileName = executionFile,
@@ -230,8 +236,21 @@ namespace pocorall.SCM_Notifier
                 WorkingDirectory = workingPath
             };
 
-            ExecuteResult er = new ExecuteResult();
-            er.process = Process.Start(psi);
+            er.process = new Process();
+
+            er.process.StartInfo = psi;
+            er.process.ErrorDataReceived += new DataReceivedEventHandler((sender, e) => {
+                if (e.Data != null)
+                    errOut += e.Data.TrimEnd() + "\n"; 
+            });
+            er.process.OutputDataReceived += new DataReceivedEventHandler((sender, e) => { 
+                if (e.Data != null)
+                    stdOut += e.Data.TrimEnd() + "\n"; 
+            });
+
+            er.process.Start();
+
+            //er.process = Process.Start(psi);
 
             if (waitForExit) backgroundProcess = er.process;
 
@@ -240,6 +259,7 @@ namespace pocorall.SCM_Notifier
                 try
                 {
                     er.process.PriorityClass = ProcessPriorityClass.Idle;
+
                 }
                 catch	// Exception may occur if process finishing or already finished
                 {
@@ -251,21 +271,12 @@ namespace pocorall.SCM_Notifier
                 ArrayList lines = new ArrayList();
                 string line;
 
-                // Read output stream
-                while ((line = er.process.StandardOutput.ReadLine()) != null)
-                    lines.Add(line);
-
-                er.processOutput = String.Join("\n", (string[])lines.ToArray(typeof(string)));
-                lines.Clear();
-
-                // Read error stream
-                while ((line = er.process.StandardError.ReadLine()) != null)
-                    lines.Add(line);
-
-                er.processError = String.Join("\n", (string[])lines.ToArray(typeof(string)));
-                lines.Clear();
+                er.process.BeginErrorReadLine();
+                er.process.BeginOutputReadLine();
 
                 er.process.WaitForExit();
+                er.processOutput = stdOut;
+                er.processError = errOut;
 
                 if (er.process.ExitCode != 0 && er.processError.Length > 0)
                     OnErrorAdded(workingPath, er.processError);
