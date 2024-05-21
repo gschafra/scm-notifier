@@ -77,9 +77,9 @@ namespace pocorall.SCM_Notifier
 			this.fetchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem ();
 			this.toolStripMenuItem9 = new System.Windows.Forms.ToolStripSeparator ();
 			this.propertiesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem ();
-            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
-            this.sortListToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.statusStrip = new System.Windows.Forms.StatusStrip();
+			this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
+			this.sortListToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+			this.statusStrip = new System.Windows.Forms.StatusStrip();
 			this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel ();
 			this.toolStripStatusLabel2 = new System.Windows.Forms.ToolStripStatusLabel ();
 			this.toolStripStatusLabel3 = new System.Windows.Forms.ToolStripStatusLabel ();
@@ -107,7 +107,7 @@ namespace pocorall.SCM_Notifier
 			//
 			// folderBrowserDialog
 			//
-		    this.folderBrowserDialog.Title = Resources.selectFolder;
+			this.folderBrowserDialog.Title = Resources.selectFolder;
 			//
 			// statusUpdateTimer
 			//
@@ -117,22 +117,22 @@ namespace pocorall.SCM_Notifier
 			//
 			// imageListFolderStatus
 			//
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_UpToDate");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_Error");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_Unknown");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_UpToDate_Modified");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_NeedUpdate_Modified");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_NeedUpdate");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_UpToDate");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_NeedUpdate");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_Error");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_Unknown");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_UpToDate_Modified");
-            global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_NeedUpdate_Modified");
-            //
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_UpToDate");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_Error");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_Unknown");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_UpToDate_Modified");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_NeedUpdate_Modified");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Svn_FolderStatus_NeedUpdate");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_UpToDate");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_NeedUpdate");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_Error");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_Unknown");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_UpToDate_Modified");
+			global::pocorall.SCM_Notifier.Properties.Resources.getBitmap(imageListFolderStatus.Images, "Git_FolderStatus_NeedUpdate_Modified");
+			//
 			// openFileDialog
 			//
-            this.openFileDialog.Title = Resources.selectFolder;
+			this.openFileDialog.Title = Resources.selectFolder;
 			//
 			// notifyIcon
 			//
@@ -146,11 +146,11 @@ namespace pocorall.SCM_Notifier
 			// trayContextMenuStrip
 			//
 			this.trayContextMenuStrip.Items.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.menuItem_ShowList,
-            this.toolStripMenuItem1,
-            this.menuItem_UpdateAll,
-            this.toolStripMenuItem2,
-            this.menuItem_Exit});
+			this.menuItem_ShowList,
+			this.toolStripMenuItem1,
+			this.menuItem_UpdateAll,
+			this.toolStripMenuItem2,
+			this.menuItem_Exit});
 			this.trayContextMenuStrip.Name = "contextMenuStrip";
 			this.trayContextMenuStrip.Size = new System.Drawing.Size (187, 82);
 			//
@@ -188,10 +188,10 @@ namespace pocorall.SCM_Notifier
 			// menuStrip
 			//
 			this.menuStrip.Items.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.fileToolStripMenuItem,
-            this.editToolStripMenuItem,
-            this.toolsToolStripMenuItem,
-            this.helpToolStripMenuItem});
+			this.fileToolStripMenuItem,
+			this.editToolStripMenuItem,
+			this.toolsToolStripMenuItem,
+			this.helpToolStripMenuItem});
 			this.menuStrip.Location = new System.Drawing.Point (0, 0);
 			this.menuStrip.Name = "menuStrip";
 			this.menuStrip.Size = new System.Drawing.Size (504, 24);
@@ -201,10 +201,10 @@ namespace pocorall.SCM_Notifier
 			// fileToolStripMenuItem
 			//
 			this.fileToolStripMenuItem.DropDownItems.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.importConfigurationToolStripMenuItem,
-            this.exportConfigurationToolStripMenuItem,
-            this.toolStripMenuItem3,
-            this.exitToolStripMenuItem});
+			this.importConfigurationToolStripMenuItem,
+			this.exportConfigurationToolStripMenuItem,
+			this.toolStripMenuItem3,
+			this.exitToolStripMenuItem});
 			this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
 			this.fileToolStripMenuItem.Size = new System.Drawing.Size (35, 20);
 			this.fileToolStripMenuItem.Text = "&File";
@@ -238,9 +238,9 @@ namespace pocorall.SCM_Notifier
 			// editToolStripMenuItem
 			//
 			this.editToolStripMenuItem.DropDownItems.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.addFolderToolStripMenuItem,
-            this.addFileToolStripMenuItem,
-            this.deleteToolStripMenuItem});
+			this.addFolderToolStripMenuItem,
+			this.addFileToolStripMenuItem,
+			this.deleteToolStripMenuItem});
 			this.editToolStripMenuItem.Name = "editToolStripMenuItem";
 			this.editToolStripMenuItem.Size = new System.Drawing.Size (37, 20);
 			this.editToolStripMenuItem.Text = "&Edit";
@@ -273,9 +273,9 @@ namespace pocorall.SCM_Notifier
 			// toolsToolStripMenuItem
 			//
 			this.toolsToolStripMenuItem.DropDownItems.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.updateAllToolStripMenuItem,
-            this.toolStripMenuItem4,
-            this.settingsToolStripMenuItem});
+			this.updateAllToolStripMenuItem,
+			this.toolStripMenuItem4,
+			this.settingsToolStripMenuItem});
 			this.toolsToolStripMenuItem.Name = "toolsToolStripMenuItem";
 			this.toolsToolStripMenuItem.Size = new System.Drawing.Size (44, 20);
 			this.toolsToolStripMenuItem.Text = "&Tools";
@@ -303,9 +303,9 @@ namespace pocorall.SCM_Notifier
 			// helpToolStripMenuItem
 			//
 			this.helpToolStripMenuItem.DropDownItems.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.checkForUpdatesToolStripMenuItem,
-            this.toolStripMenuItem5,
-            this.aboutSVNNotifierToolStripMenuItem});
+			this.checkForUpdatesToolStripMenuItem,
+			this.toolStripMenuItem5,
+			this.aboutSVNNotifierToolStripMenuItem});
 			this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
 			this.helpToolStripMenuItem.Size = new System.Drawing.Size (40, 20);
 			this.helpToolStripMenuItem.Text = "&Help";
@@ -332,20 +332,20 @@ namespace pocorall.SCM_Notifier
 			// contextMenuStrip
 			//
 			this.contextMenuStrip.Items.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.checkNowToolStripMenuItem,
-            this.toolStripMenuItem6,
-            this.changeLogToolStripMenuItem,
-            this.updateToolStripMenuItem,
-            this.toolStripMenuItem7,
-            this.commitToolStripMenuItem,
-            this.toolStripMenuItem8,
-            this.openToolStripMenuItem,
-            this.logToolStripMenuItem,
-            this.fetchToolStripMenuItem,
-            this.toolStripMenuItem9,
-            this.propertiesToolStripMenuItem,
-            this.toolStripSeparator3, 
-            this.sortListToolStripMenuItem});
+			this.checkNowToolStripMenuItem,
+			this.toolStripMenuItem6,
+			this.changeLogToolStripMenuItem,
+			this.updateToolStripMenuItem,
+			this.toolStripMenuItem7,
+			this.commitToolStripMenuItem,
+			this.toolStripMenuItem8,
+			this.openToolStripMenuItem,
+			this.logToolStripMenuItem,
+			this.fetchToolStripMenuItem,
+			this.toolStripMenuItem9,
+			this.propertiesToolStripMenuItem,
+			this.toolStripSeparator3, 
+			this.sortListToolStripMenuItem});
 			this.contextMenuStrip.Name = "contextMenuStrip";
 			this.contextMenuStrip.Size = new System.Drawing.Size (155, 182);
 			this.contextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler (this.contextMenuStrip_Opening);
@@ -425,21 +425,21 @@ namespace pocorall.SCM_Notifier
 			this.propertiesToolStripMenuItem.Size = new System.Drawing.Size (154, 22);
 			this.propertiesToolStripMenuItem.Text = "Properties";
 			this.propertiesToolStripMenuItem.Click += new System.EventHandler (this.propertiesToolStripMenuItem_Click);
-            // 
-            // sortListToolStripMenuItem
-            // 
-            this.sortListToolStripMenuItem.Name = "sortListToolStripMenuItem";
-            this.sortListToolStripMenuItem.Size = new System.Drawing.Size(209, 22);
-            this.sortListToolStripMenuItem.Text = "Sort list (Asc, Desc, None)";
-            this.sortListToolStripMenuItem.Click += new System.EventHandler(this.sortListToolStripMenuItem_Click);
-            //
+			// 
+			// sortListToolStripMenuItem
+			// 
+			this.sortListToolStripMenuItem.Name = "sortListToolStripMenuItem";
+			this.sortListToolStripMenuItem.Size = new System.Drawing.Size(209, 22);
+			this.sortListToolStripMenuItem.Text = "Sort list (Asc, Desc, None)";
+			this.sortListToolStripMenuItem.Click += new System.EventHandler(this.sortListToolStripMenuItem_Click);
+			//
 			// statusStrip
 			//
 			this.statusStrip.GripStyle = System.Windows.Forms.ToolStripGripStyle.Visible;
 			this.statusStrip.Items.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.toolStripStatusLabel1,
-            this.toolStripStatusLabel2,
-            this.toolStripStatusLabel3});
+			this.toolStripStatusLabel1,
+			this.toolStripStatusLabel2,
+			this.toolStripStatusLabel3});
 			this.statusStrip.Location = new System.Drawing.Point (0, 118);
 			this.statusStrip.Name = "statusStrip";
 			this.statusStrip.Size = new System.Drawing.Size (504, 22);
@@ -474,17 +474,17 @@ namespace pocorall.SCM_Notifier
 			//
 			this.toolStrip1.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
 			this.toolStrip1.Items.AddRange (new System.Windows.Forms.ToolStripItem [] {
-            this.btnChangeLog,
-            this.btnUpdate,
-            this.btnCommit,
-            this.btnOpenFolder,
-            this.btnLog,
+			this.btnChangeLog,
+			this.btnUpdate,
+			this.btnCommit,
+			this.btnOpenFolder,
+			this.btnLog,
 			this.btnFetch,
-            this.btnDelete,
-            this.toolStripSeparator1,
-            this.btnAddFile,
-            this.toolStripSeparator2,
-            this.btnAddFolder});
+			this.btnDelete,
+			this.toolStripSeparator1,
+			this.btnAddFile,
+			this.toolStripSeparator2,
+			this.btnAddFolder});
 			this.toolStrip1.Location = new System.Drawing.Point (0, 24);
 			this.toolStrip1.Name = "toolStrip1";
 			this.toolStrip1.Size = new System.Drawing.Size (504, 29);
@@ -624,7 +624,7 @@ namespace pocorall.SCM_Notifier
 			this.listViewFolders.Size = new System.Drawing.Size (504, 65);
 			this.listViewFolders.SmallImageList = this.imageListFolderStatus;
 			this.listViewFolders.TabIndex = 0;
-            this.listViewFolders.ShowItemToolTips = true;
+			this.listViewFolders.ShowItemToolTips = true;
 			this.listViewFolders.UseCompatibleStateImageBehavior = false;
 			this.listViewFolders.View = System.Windows.Forms.View.List;
 			this.listViewFolders.SelectedIndexChanged += new System.EventHandler (this.listViewFolders_SelectedIndexChanged);
@@ -674,7 +674,7 @@ namespace pocorall.SCM_Notifier
 		#region Windows Forms Designer variables
 
 		private ImageList imageListFolderStatus;
-        private FolderSelect.FolderSelectDialog folderBrowserDialog;
+		private FolderSelect.FolderSelectDialog folderBrowserDialog;
 		private System.Timers.Timer statusUpdateTimer;
 		private Timer pauseTimer;
 		private DragAndDropListView listViewFolders;
@@ -733,9 +733,9 @@ namespace pocorall.SCM_Notifier
 		private ToolStripSeparator toolStripSeparator1;
 		private ToolStripSeparator toolStripSeparator2;
 		private ToolStripStatusLabel toolStripStatusLabel3;
-        private ToolStripMenuItem sortListToolStripMenuItem;
-        private ToolStripSeparator toolStripSeparator3;
+		private ToolStripMenuItem sortListToolStripMenuItem;
+		private ToolStripSeparator toolStripSeparator3;
 
-        #endregion
-    }
+		#endregion
+	}
 }

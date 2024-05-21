@@ -19,13 +19,8 @@
 //
 
 using System;
-using System.Collections;
-using System.Text.RegularExpressions;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Threading;
-using System.Windows.Forms;
+using System.Text.RegularExpressions;
 
 namespace pocorall.SCM_Notifier
 {
@@ -35,13 +30,11 @@ namespace pocorall.SCM_Notifier
 
         static GitRepository()
         {
-            regexUpToDate = new Regex(@"^\s=\s\[up to date\]\s.+?\s->\s.+$",RegexOptions.Compiled); 
+            regexUpToDate = new Regex(@"^\s=\s\[up to date\]\s.+?\s->\s.+$", RegexOptions.Compiled);
         }
-
 
         public static bool IsGitRepositoryDir(string dir)
         {
-
             if (string.IsNullOrEmpty(dir))
                 return false;
             dir = System.IO.Path.Combine(dir, ".git");
@@ -54,13 +47,12 @@ namespace pocorall.SCM_Notifier
 
         public GitRepository(string path, PathType type = ScmRepository.PathType.Directory) : base("Git", path, type)
         {
-            
         }
 
         protected override int GetRepositoryRevision(string binaryPath, string path, string arg)
         {
             string arguments = String.Format("info --non-interactive --xml \"{0}\" -r {1}", path, arg);
-        ExecuteResult er = ExecuteProcess(binaryPath, path, arguments, true, false);
+            ExecuteResult er = ExecuteProcess(binaryPath, path, arguments, true, false);
 
             try
             {
@@ -118,14 +110,14 @@ namespace pocorall.SCM_Notifier
                 arguments = String.Format("pull {0}", Path);
 
             ExecuteResult er = ExecuteProcess(Config.GitUIPath, Path, arguments, true, false);
-            string d = ( er.processOutput);
+            string d = (er.processOutput);
         }
 
         private bool isModified(string response)
         {
             return !(response.Contains("othing added to commit") || response.Contains("othing to commit"));
         }
-        
+
         private bool IsTortoiseGit(string path)
         {
             return path.EndsWith("TortoiseGitProc.exe");
@@ -151,7 +143,7 @@ namespace pocorall.SCM_Notifier
             {
                 if (this.IsGitExtensions(Config.GitUIPath))
                     arguments = String.Format("commit {0}", Path);
-                else 
+                else
                     arguments = String.Format("/command:commit /path:\"{0}\" /notempfile", Path);
             }
             er = ExecuteProcess(Config.GitUIPath, null, arguments, false, false);
@@ -172,14 +164,14 @@ namespace pocorall.SCM_Notifier
             {
                 result = strings[1].Trim();
 
-                // 
+                //
                 int startPosition = result.IndexOf(CONST_STATUS_MARKER);
                 if (startPosition > 0)
                 {
                     result = result.Remove(0, startPosition + CONST_STATUS_MARKER.Length);
                 }
 
-                // 
+                //
                 startPosition = result.IndexOf(CONST_ORIGIN_MARKER);
                 if (startPosition > 0)
                 {
@@ -202,15 +194,20 @@ namespace pocorall.SCM_Notifier
             try
             {
                 ExecuteResult er = ExecuteProcess(Config.GitPath, path, "fetch --all --dry-run -v", true, true);
-                if (er.processError.Contains("Could not fetch"))
+
+                // Strip info: detecting host provider from process output
+                string processError = Regex.Replace(er.processError, @"info:.+\n", "", RegexOptions.IgnoreCase);
+
+                if (processError.Contains("Could not fetch"))
                 {
                     return new ScmRepositoryStatusEx() { status = ScmRepositoryStatus.Error };
                 }
 
                 ScmRepositoryStatusEx result = new ScmRepositoryStatusEx();
-                result.branchName = ResolveCurrentBranchName(er.processError);
 
-                bool needUpdate = this.IsNeedUpdate(er.processError);
+                result.branchName = ResolveCurrentBranchName(processError);
+
+                bool needUpdate = this.IsNeedUpdate(processError);
 
                 string arguments = String.Format("status -u \"{0}\"", path);
                 er = ExecuteProcess(Config.GitPath, path, arguments, true, true);
@@ -227,11 +224,10 @@ namespace pocorall.SCM_Notifier
                 if (er.processOutput.Contains("branch is ahead of") || er.processOutput.Contains("Changed but not updated") || er.processOutput.Contains("Changes not staged for commit")
                     || er.processOutput.Contains("Changes to be committed"))
                 {
-                    result.status = needUpdate? ScmRepositoryStatus.NeedUpdate_Modified: ScmRepositoryStatus.UpToDate_Modified;
+                    result.status = needUpdate ? ScmRepositoryStatus.NeedUpdate_Modified : ScmRepositoryStatus.UpToDate_Modified;
                     return result;
                 }
-                else
-                if (!isModified(er.processOutput))
+                else if (!isModified(er.processOutput))
                 {
                     result.status = needUpdate ? ScmRepositoryStatus.NeedUpdate : ScmRepositoryStatus.UpToDate;
                     return result;
@@ -253,9 +249,16 @@ namespace pocorall.SCM_Notifier
             {
                 string line;
                 while ((line = sr.ReadLine()) != null)
-                {  
-                    if (line.StartsWith("From") || line.StartsWith("POST git-upload-pack")) continue;
-                    if (!regexUpToDate.IsMatch(line)) return true;
+                {
+                    if (line.StartsWith("From") || line.StartsWith("Fetching") || line.StartsWith("POST git-upload-pack"))
+                    {
+                        continue;
+                    }
+
+                    if (!regexUpToDate.IsMatch(line))
+                    {
+                        return true;
+                    }
                 }
             }
             return false;

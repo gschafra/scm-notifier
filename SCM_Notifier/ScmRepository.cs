@@ -25,10 +25,10 @@
 
 using System;
 using System.Collections;
-using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -37,11 +37,11 @@ namespace pocorall.SCM_Notifier
     public enum ScmRepositoryStatus
     {
         Unknown = 3,
-        Error =2,
-        NeedUpdate =1,
+        Error = 2,
+        NeedUpdate = 1,
         NeedUpdate_Modified = 5,
-        UpToDate=0,
-        UpToDate_Modified=4
+        UpToDate = 0,
+        UpToDate_Modified = 4
     }
 
     public class ScmRepositoryStatusEx
@@ -69,54 +69,60 @@ namespace pocorall.SCM_Notifier
 
     abstract public class ScmRepository : ICloneable
     {
-		public string Path;
-		public string origPath;
-		public string VisiblePath;
-		public int ActiveStatusUpdateInterval;
-		public int IdleStatusUpdateInterval;
-		public bool Disable;
-		public PathType pathType;
+        public string Path;
+        public string origPath;
+        public string VisiblePath;
+        public int ActiveStatusUpdateInterval;
+        public int IdleStatusUpdateInterval;
+        public bool Disable;
+        public PathType pathType;
 
-		public enum PathType {
-			Directory = 0,
-			HeadDirectory = 1,
-			File = 2
-		}
+        public enum PathType
+        {
+            Directory = 0,
+            HeadDirectory = 1,
+            File = 2
+        }
 
-		public ScmRepositoryStatus Status {
-			get	{ return status; }
-			set	{
-				status = value;
-				statusUpdateTime = DateTime.Now;
-			}
-		}
+        public ScmRepositoryStatus Status
+        {
+            get { return status; }
+            set
+            {
+                status = value;
+                statusUpdateTime = DateTime.Now;
+            }
+        }
 
-		public DateTime StatusUpdateTime {
-			get { return statusUpdateTime; }
-		}
+        public DateTime StatusUpdateTime
+        {
+            get { return statusUpdateTime; }
+        }
 
         private string scmType;
 
-		public ScmRepository (string scmtype, string path, PathType type) {
-			Path = DeserializePath (path);
-			origPath = path;
-			pathType = type;
+        protected ScmRepository(string scmtype, string path, PathType type)
+        {
+            Path = DeserializePath(path);
+            origPath = path;
+            pathType = type;
             this.scmType = scmtype;
-			Status = ScmRepositoryStatus.Unknown;
-			statusUpdateTime = DateTime.MinValue;
-			ActiveStatusUpdateInterval = -1;
-			IdleStatusUpdateInterval = -1;
-			Disable = false;
-		}
+            Status = ScmRepositoryStatus.Unknown;
+            statusUpdateTime = DateTime.MinValue;
+            ActiveStatusUpdateInterval = -1;
+            IdleStatusUpdateInterval = -1;
+            Disable = false;
+        }
 
         public string IconName
         {
             get { return scmType + "_FolderStatus_" + Status.ToString(); }
         }
 
-		public string Serialize () {
-			return scmType + "|"+origPath + "|" + ActiveStatusUpdateInterval + "|" + IdleStatusUpdateInterval + "|" + Disable + "|" + (int)pathType;
-		}
+        public string Serialize()
+        {
+            return scmType + "|" + origPath + "|" + ActiveStatusUpdateInterval + "|" + IdleStatusUpdateInterval + "|" + Disable + "|" + (int)pathType;
+        }
 
         public static ScmRepository create(string path)
         {
@@ -131,64 +137,65 @@ namespace pocorall.SCM_Notifier
             return null;
         }
 
-		public static ScmRepository Deserialize(string s)
-		{
-			string[] p = s.Split ('|');
+        public static ScmRepository Deserialize(string s)
+        {
+            string[] p = s.Split('|');
             ScmRepository f;
-            if("Git".Equals(p[0])) {
+            if ("Git".Equals(p[0]))
+            {
                 f = (new GitRepository(p[1]));
-            } else {
+            }
+            else
+            {
                 f = (new SvnRepository(p[1], (PathType)Int32.Parse(p[5])));
             }
             f.ActiveStatusUpdateInterval = Int32.Parse(p[2]);
-      		f.IdleStatusUpdateInterval = Int32.Parse (p[3]);
-      		f.Disable = Boolean.Parse (p[4]);
-			return f;
-		}
+            f.IdleStatusUpdateInterval = Int32.Parse(p[3]);
+            f.Disable = Boolean.Parse(p[4]);
+            return f;
+        }
 
-		private static string DeserializePath (string s)
-		{
-			Regex r = new Regex ("%(.*)%", RegexOptions.None);
-			Match m = r.Match (s);
-			string v = m.Groups[1].ToString().Trim();
-			if (v != "")
-			{
-				try
-				{
-					string path = Environment.GetEnvironmentVariable (v);
-					if (path != null)
-						s = s.Replace ("%" + v + "%", path);
-				}
-				catch
-				{
-					// TODO: ...
-					// ...variable is a null reference
-					// ...The caller does not have EnvironmentPermission with Read access.
-				}
-			}
-			return s;
-		}
+        private static string DeserializePath(string s)
+        {
+            Regex r = new Regex("%(.*)%", RegexOptions.None);
+            Match m = r.Match(s);
+            string v = m.Groups[1].ToString().Trim();
+            if (v != "")
+            {
+                try
+                {
+                    string path = Environment.GetEnvironmentVariable(v);
+                    if (path != null)
+                        s = s.Replace("%" + v + "%", path);
+                }
+                catch
+                {
+                    // TODO: ...
+                    // ...variable is a null reference
+                    // ...The caller does not have EnvironmentPermission with Read access.
+                }
+            }
+            return s;
+        }
 
+        public object Clone()
+        {
+            return MemberwiseClone();
+        }
 
-		public object Clone() {
-			return MemberwiseClone();
-		}
+        public int GetInterval(bool formIsActive)
+        {
+            return ActiveStatusUpdateInterval < 0
+                    ? (formIsActive ? Config.DefaultActiveStatusUpdateInterval : Config.DefaultIdleStatusUpdateInterval)
+                    : (formIsActive ? ActiveStatusUpdateInterval : IdleStatusUpdateInterval);
+        }
 
+        private ScmRepositoryStatus status = ScmRepositoryStatus.Unknown;
+        private DateTime statusUpdateTime;
 
-		public int GetInterval (bool formIsActive) {
-			return ActiveStatusUpdateInterval < 0
-			       	? (formIsActive ? Config.DefaultActiveStatusUpdateInterval : Config.DefaultIdleStatusUpdateInterval)
-			       	: (formIsActive ? ActiveStatusUpdateInterval : IdleStatusUpdateInterval);
-		}
+        internal int updateRevision;
+        internal int reviewedRevision;
 
-
-		private ScmRepositoryStatus status = ScmRepositoryStatus.Unknown;
-		private DateTime statusUpdateTime;
-
-		internal int updateRevision;
-		internal int reviewedRevision;
-
-       
         protected struct ExecuteResult
         {
             public Process process;
@@ -206,12 +213,18 @@ namespace pocorall.SCM_Notifier
             if (handler != null) handler(path, error);
         }
 
-        public static ArrayList scmFolderProcesses = ArrayList.Synchronized(new ArrayList());
+        public static List<ScmRepositoryProcess> scmFolderProcesses = new List<ScmRepositoryProcess>();
         private static Process backgroundProcess;
 
         protected static ExecuteResult ExecuteProcess(string executionFile, string workingPath, string arguments, bool waitForExit, bool lowPriority)
         {
             SetEnvironmentVariable();
+
+            ExecuteResult er = new ExecuteResult();
+
+            string errOut = null;
+            string stdOut = null;
+
             ProcessStartInfo psi = new ProcessStartInfo
             {
                 FileName = executionFile,
@@ -221,11 +234,22 @@ namespace pocorall.SCM_Notifier
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 StandardOutputEncoding = Encoding.ASCII,
-                WorkingDirectory=workingPath
+                WorkingDirectory = workingPath
             };
 
-            ExecuteResult er = new ExecuteResult();
-            er.process = Process.Start(psi);
+            er.process = new Process();
+
+            er.process.StartInfo = psi;
+            er.process.ErrorDataReceived += new DataReceivedEventHandler((sender, e) => {
+                if (e.Data != null)
+                    errOut += e.Data.TrimEnd() + "\n"; 
+            });
+            er.process.OutputDataReceived += new DataReceivedEventHandler((sender, e) => { 
+                if (e.Data != null)
+                    stdOut += e.Data.TrimEnd() + "\n"; 
+            });
+
+            er.process.Start();
 
             if (waitForExit) backgroundProcess = er.process;
 
@@ -234,6 +258,7 @@ namespace pocorall.SCM_Notifier
                 try
                 {
                     er.process.PriorityClass = ProcessPriorityClass.Idle;
+
                 }
                 catch	// Exception may occur if process finishing or already finished
                 {
@@ -245,21 +270,12 @@ namespace pocorall.SCM_Notifier
                 ArrayList lines = new ArrayList();
                 string line;
 
-                // Read output stream
-                while ((line = er.process.StandardOutput.ReadLine()) != null)
-                    lines.Add(line);
-
-                er.processOutput = String.Join("\n", (string[])lines.ToArray(typeof(string)));
-                lines.Clear();
-
-                // Read error stream
-                while ((line = er.process.StandardError.ReadLine()) != null)
-                    lines.Add(line);
-
-                er.processError = String.Join("\n", (string[])lines.ToArray(typeof(string)));
-                lines.Clear();
+                er.process.BeginErrorReadLine();
+                er.process.BeginOutputReadLine();
 
                 er.process.WaitForExit();
+                er.processOutput = stdOut;
+                er.processError = errOut;
 
                 if (er.process.ExitCode != 0 && er.processError.Length > 0)
                     OnErrorAdded(workingPath, er.processError);
@@ -290,6 +306,7 @@ namespace pocorall.SCM_Notifier
                     Environment.GetEnvironmentVariable("USERPROFILE"));
             Environment.SetEnvironmentVariable("TERM", "msys");
         }
+
         // TODO: Optimize speed; join GetRepositoryHeadRevision and GetRepositoryCommitedRevision functions into one:
         // void int GetRepositoryRevisions (string path, out int headRevision, out int committedRevision)
         abstract protected int GetRepositoryRevision(string binaryPath, string path, string arg);
@@ -319,10 +336,13 @@ namespace pocorall.SCM_Notifier
                 if (sfp.isUpdateCommand && (line.Length > 1))
                 {
                     if (line.StartsWith("C ") || line.StartsWith("svn"))
+                    {
                         sfp.updateError = true;
-
+                    }
                     else if (line.StartsWith("Skipped "))
+                    {
                         sfp.updateError = true;
+                    }
                 }
             }
 
@@ -330,7 +350,9 @@ namespace pocorall.SCM_Notifier
             {
                 sfp.processOutput.Add(sfp.process.StandardError.ReadLine());
                 if (sfp.isUpdateCommand)
+                {
                     sfp.updateError = true;
+                }
             }
         }
 
@@ -347,135 +369,135 @@ namespace pocorall.SCM_Notifier
                 }
             }
         }
- 	}
+    }
 
+    public class SvnFolderCollection : IEnumerable, ICloneable
+    {
+        private readonly ArrayList list;
 
-	public class SvnFolderCollection: IEnumerable, ICloneable
-	{
-		private readonly ArrayList list;
+        public int Count
+        {
+            get
+            {
+                return list.Count;
+            }
+        }
 
+        public IEnumerator GetEnumerator()
+        {
+            return list.GetEnumerator();
+        }
 
-		public int Count
-		{
-			get
-			{
-				return list.Count;
-			}
-		}
+        public ScmRepository this[int index]
+        {
+            get
+            {
+                return (ScmRepository)list[index];
+            }
+            set
+            {
+                list[index] = value;
+            }
+        }
 
-		
-		public IEnumerator GetEnumerator()
-		{
-			return list.GetEnumerator();
-		}
+        public void Clear()
+        {
+            list.Clear();
+        }
 
-		
-		public ScmRepository this [int index]
-		{
-			get
-			{
-				return (ScmRepository) list[index];
-			}
-			set
-			{
-				list[index] = value;
-			}
-		}
+        public void RemoveAt(int index)
+        {
+            list.RemoveAt(index);
+        }
 
+        public void Insert(int index, ScmRepository f)
+        {
+            list.Insert(index, f);
+        }
 
-		public void Clear()
-		{
-			list.Clear();
-		}
+        public int IndexOf(ScmRepository f)
+        {
+            return list.IndexOf(f);
+        }
 
-		
-		public void RemoveAt (int index)
-		{
-			list.RemoveAt (index);
-		}
+        public void Remove(ScmRepository f)
+        {
+            list.Remove(f);
+        }
 
+        public bool ContainsPath(string path)
+        {
+            foreach (ScmRepository f in list)
+            {
+                if (f.Path == path)
+                {
+                    return true;
+                }
+            }
 
-		public void Insert (int index, ScmRepository f)
-		{
-			list.Insert (index, f);
-		}
+            return false;
+        }
 
+        public bool ContainsStatus(ScmRepositoryStatus status)
+        {
+            foreach (ScmRepository f in list)
+            {
+                if (f.Status == status && !f.Disable)
+                {
+                    return true;
+                }
+            }
 
-		public int IndexOf (ScmRepository f)
-		{
-			return list.IndexOf (f);
-		}
+            return false;
+        }
 
+        public int Add(ScmRepository f)
+        {
+            return list.Add(f);
+        }
 
-		public void Remove (ScmRepository f)
-		{
-			list.Remove (f);
-		}
+        public SvnFolderCollection()
+        {
+            list = ArrayList.Synchronized(new ArrayList());
+        }
 
+        public object Clone()
+        {
+            return new SvnFolderCollection((ArrayList)list.Clone());
+        }
 
-		public bool ContainsPath (string path)
-		{
-			foreach (ScmRepository f in list)
-				if (f.Path == path)
-					return true;
-			return false;
-		}
+        protected SvnFolderCollection(ArrayList list)
+        {
+            this.list = list;
+        }
 
+        public int FindNextStatusUpdateTimeMs(bool formIsActive)
+        {
+            if (list.Count == 0)
+            {
+                return 3000;                          // Return just some good value
+            }
 
-		public bool ContainsStatus (ScmRepositoryStatus status)
-		{
-			foreach (ScmRepository f in list)
-				if (f.Status == status && !f.Disable)
-					return true;
+            DateTime minNextTime = DateTime.MaxValue;
+            DateTime now = DateTime.Now;
 
-			return false;
-		}
+            foreach (ScmRepository folder in list)
+            {
+                TimeSpan ts = new TimeSpan(0, 0, folder.GetInterval(formIsActive));
+                DateTime nextTime = folder.StatusUpdateTime + ts;
 
-		
-		public int Add (ScmRepository f)
-		{
-			return list.Add (f);
-		}
+                if (nextTime <= now)
+                {
+                    return 0;
+                }
 
-		
-		public SvnFolderCollection ()
-		{
-			list = ArrayList.Synchronized (new ArrayList());
-		}
+                if (nextTime < minNextTime)
+                {
+                    minNextTime = nextTime;
+                }
+            }
 
-
-		public object Clone()
-		{
-			return new SvnFolderCollection ((ArrayList) list.Clone());
-		}
-
-
-		protected SvnFolderCollection (ArrayList list)
-		{
-			this.list = list;
-		}
-
-
-		public int FindNextStatusUpdateTimeMs (bool formIsActive)
-		{
-			if (list.Count == 0) return 3000;							// Return just some good value
-
-			DateTime minNextTime = DateTime.MaxValue;
-			DateTime now = DateTime.Now;
-
-			foreach (ScmRepository folder in list)
-			{
-				TimeSpan ts = new TimeSpan (0, 0, folder.GetInterval (formIsActive));
-				DateTime nextTime = folder.StatusUpdateTime + ts;
-
-				if (nextTime <= now)
-					return 0;
-				
-				if (nextTime < minNextTime)
-					minNextTime = nextTime;
-			}
-
-			return (int) (minNextTime - now).TotalMilliseconds;
-		}
-	}
+            return (int)(minNextTime - now).TotalMilliseconds;
+        }
+    }
 }

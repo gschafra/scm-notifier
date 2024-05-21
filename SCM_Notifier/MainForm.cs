@@ -23,6 +23,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 //
 
+using DragNDrop;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -36,202 +37,195 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Timers;
 using System.Windows.Forms;
-using DragNDrop;
-
 
 namespace pocorall.SCM_Notifier
 {
-	public partial class MainForm : Form
-	{
-		[DllImport("psapi")]
-		private static extern int EmptyWorkingSet(IntPtr handle);
+    public partial class MainForm : Form
+    {
+        [DllImport("psapi")]
+        private static extern int EmptyWorkingSet(IntPtr handle);
 
-		private readonly Hashtable errorLog = new Hashtable();
-		private bool reupdateStatus;
-		private readonly ManualResetEvent updateNotInProgress = new ManualResetEvent (true);
-		private readonly Queue forcedFolders = Queue.Synchronized (new Queue());
-		private bool timerEnabledWhenSuspended = true;
+        private readonly Hashtable errorLog = new Hashtable();
+        private bool reupdateStatus;
+        private readonly ManualResetEvent updateNotInProgress = new ManualResetEvent(true);
+        private readonly Queue forcedFolders = Queue.Synchronized(new Queue());
+        private bool timerEnabledWhenSuspended = true;
 
         private SortOrder folderSortWay = SortOrder.None;
 
-		public MainForm()
-		{
-			InitializeComponent();
+        public MainForm()
+        {
+            InitializeComponent();
 
-			if (Config.HideOnStartup)
-			{
-				WindowState = FormWindowState.Minimized;
-				ShowInTaskbar = false;
-			}
-			else
-				ShowInTaskbar = Config.ShowInTaskbar;
+            if (Config.HideOnStartup)
+            {
+                WindowState = FormWindowState.Minimized;
+                ShowInTaskbar = false;
+            }
+            else
+                ShowInTaskbar = Config.ShowInTaskbar;
 
             ScmRepository.ErrorAdded += OnErrorAdded;
 
-			AddPowerEventListener();
+            AddPowerEventListener();
 
-			FormInit();
-		}
+            FormInit();
+        }
 
-		private void AddPowerEventListener()
-		{
-			Microsoft.Win32.SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
-		}
+        private void AddPowerEventListener()
+        {
+            Microsoft.Win32.SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
+        }
 
-		private void RemovePowerEventListener()
-		{
-			// Static events must be removed when application closes to avoid memory leaks
-			Microsoft.Win32.SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
-		}
+        private void RemovePowerEventListener()
+        {
+            // Static events must be removed when application closes to avoid memory leaks
+            Microsoft.Win32.SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
+        }
 
-		void SystemEvents_PowerModeChanged(object sender, Microsoft.Win32.PowerModeChangedEventArgs e)
-		{
-			switch (e.Mode )
-			{
-				case Microsoft.Win32.PowerModes.Suspend:
-					timerEnabledWhenSuspended = statusUpdateTimer.Enabled;
-					statusUpdateTimer.Stop();
-					break;
-				case Microsoft.Win32.PowerModes.Resume:
-					pauseTimer.Stop();
-					if (timerEnabledWhenSuspended)
-					{
-						pauseTimer.Interval = 1000 * Config.PauseAfterWindowsResumeInterval;
-						pauseTimer.Start();
-					}
-					break;
-			}
-		}
+        private void SystemEvents_PowerModeChanged(object sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+        {
+            switch (e.Mode)
+            {
+                case Microsoft.Win32.PowerModes.Suspend:
+                    timerEnabledWhenSuspended = statusUpdateTimer.Enabled;
+                    statusUpdateTimer.Stop();
+                    break;
 
-		private void FormInit()
-		{
-			folders = Config.ReadSvnFolders();
+                case Microsoft.Win32.PowerModes.Resume:
+                    pauseTimer.Stop();
+                    if (timerEnabledWhenSuspended)
+                    {
+                        pauseTimer.Interval = 1000 * Config.PauseAfterWindowsResumeInterval;
+                        pauseTimer.Start();
+                    }
+                    break;
+            }
+        }
+
+        private void FormInit()
+        {
+            folders = Config.ReadSvnFolders();
 
             InitFoldersListView(folders);
 
-			UpdateFormSize();
+            UpdateFormSize();
 
-			UpdateListViewFolderNames();
+            UpdateListViewFolderNames();
 
-			if (Config.PauseAfterApplicationStartupInterval > 0)
-			{
-				pauseTimer.Interval = 1000 * Config.PauseAfterApplicationStartupInterval;
-			}
-			pauseTimer.Enabled = Config.DoPauseAfterApplicationStartup && Config.PauseAfterApplicationStartupInterval > 0;
-		}
+            if (Config.PauseAfterApplicationStartupInterval > 0)
+            {
+                pauseTimer.Interval = 1000 * Config.PauseAfterApplicationStartupInterval;
+            }
+            pauseTimer.Enabled = Config.DoPauseAfterApplicationStartup && Config.PauseAfterApplicationStartupInterval > 0;
+        }
 
         private void UpdateFormSize()
-		{
-			int[] size = Config.ReadMainFormSize();
+        {
+            int[] size = Config.ReadMainFormSize();
 
-			if ((size[0] == 0) || (size[1] == 0))
-			{
-				Config.SaveMainFormSize (Width, Height);
-			}
-			else
-			{
-				Width = size[0];
-				Height = size[1];
-			}
-		}
+            if ((size[0] == 0) || (size[1] == 0))
+            {
+                Config.SaveMainFormSize(Width, Height);
+            }
+            else
+            {
+                Width = size[0];
+                Height = size[1];
+            }
+        }
 
-		//////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////////////
 
-		#region Main menu handlers
+        #region Main menu handlers
 
+        private void menuItemExportConfig_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog sfd = new SaveFileDialog
+            {
+                FileName = "SCM_Notifier.ini",
+                Filter = "Ini files (*.ini)|*.ini|All files (*.*)|*.*",
+                RestoreDirectory = true
+            };
 
-		private void menuItemExportConfig_Click (object sender, EventArgs e)
-		{
-			SaveFileDialog sfd = new SaveFileDialog
-			{
-				FileName = "SCM_Notifier.ini",
-				Filter = "Ini files (*.ini)|*.ini|All files (*.*)|*.*",
-				RestoreDirectory = true
-			};
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    File.Copy(Config.iniFileName, sfd.FileName, true);
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex.Message);
+                }
+            }
+        }
 
-			if (sfd.ShowDialog() == DialogResult.OK)
-			{
-				try
-				{
-					File.Copy (Config.iniFileName, sfd.FileName, true);
-				}
-				catch (Exception ex)
-				{
-					ShowError (ex.Message);
-				}
-			}
-		}
+        private void menuItemImportConfig_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog
+            {
+                Filter = "Ini files (*.ini)|*.ini|All files (*.*)|*.*",
+                RestoreDirectory = true
+            };
 
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                if ((folders.Count > 0) && MessageBox.Show("All current settings will be lost.\n\nDo you really want to change the settings?", "Attention", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                    return;
 
-		private void menuItemImportConfig_Click (object sender, EventArgs e)
-		{
-			OpenFileDialog ofd = new OpenFileDialog
-			{
-				Filter = "Ini files (*.ini)|*.ini|All files (*.*)|*.*",
-				RestoreDirectory = true
-			};
+                try
+                {
+                    File.Copy(ofd.FileName, Config.iniFileName, true);
+                    Config.Init();
 
-			if (ofd.ShowDialog() == DialogResult.OK)
-			{
-				if ((folders.Count > 0) && MessageBox.Show ("All current settings will be lost.\n\nDo you really want to change the settings?", "Attention", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
-					return;
+                    // Check for correct import configs
+                    if (!Config.IsSettingsOK())
+                    {
+                        Hide();
+                        statusUpdateTimer.Stop();
+                        notifyIcon.Icon = trayIcon_Unknown;
 
-				try
-				{
-					File.Copy (ofd.FileName, Config.iniFileName, true);
-					Config.Init();
+                        if (new SettingsForm().ShowDialog() != DialogResult.OK)
+                        {
+                            Application.Exit();
+                            return;
+                        }
+                        ShowInTaskbar = Config.ShowInTaskbar;
+                        Show();
+                    }
 
-					// Check for correct import configs
-					if (!Config.IsSettingsOK())
-					{
-						Hide();
-						statusUpdateTimer.Stop();
-						notifyIcon.Icon = trayIcon_Unknown;
+                    FormInit();
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex.Message);
+                }
+            }
+        }
 
-						if (new SettingsForm().ShowDialog() != DialogResult.OK)
-						{
-							Application.Exit();
-							return;
-						}
-						ShowInTaskbar = Config.ShowInTaskbar;
-						Show();
-					}
+        private void menuItemSettings_Click(object sender, EventArgs e)
+        {
+            new SettingsForm().ShowDialog(this);
+            ShowInTaskbar = Config.ShowInTaskbar;
+            UpdateTray(false);                      // To enable/disable "Update All" command
+        }
 
-					FormInit();
-				}
-				catch (Exception ex)
-				{
-					ShowError (ex.Message);
-				}
-			}
-		}
+        private void menuItemExit_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
 
+        private void menuItemAbout_Click(object sender, EventArgs e)
+        {
+            new AboutForm().ShowDialog(this);
+        }
 
-		private void menuItemSettings_Click (object sender, EventArgs e)
-		{
-			new SettingsForm().ShowDialog (this);
-			ShowInTaskbar = Config.ShowInTaskbar;
-			UpdateTray (false);						// To enable/disable "Update All" command
-		}
-
-
-		private void menuItemExit_Click (object sender, EventArgs e)
-		{
-			Application.Exit();
-		}
-
-
-		private void menuItemAbout_Click (object sender, EventArgs e)
-		{
-			new AboutForm().ShowDialog (this);
-		}
-
-
-		private void menuItemUpdateAll_Click (object sender, EventArgs e)
-		{
-			WindowState = FormWindowState.Minimized;
-			UpdateAll();
-		}
+        private void menuItemUpdateAll_Click(object sender, EventArgs e)
+        {
+            WindowState = FormWindowState.Minimized;
+            UpdateAll();
+        }
 
         private void AddFolder(string path)
         {
@@ -239,7 +233,7 @@ namespace pocorall.SCM_Notifier
             {
                 ScmRepository repo = ScmRepository.create(path);
 
-                if(repo !=null)
+                if (repo != null)
                 {
                     folders.Add(repo);
                     listViewFolders.Items.Add(new ListViewItem(path, repo.IconName));
@@ -259,15 +253,15 @@ namespace pocorall.SCM_Notifier
                 SelectFolder(path);
         }
 
-		private void menuItemAddFolder_Click (object sender, EventArgs e)
-		{
-			if (folderBrowserDialog.ShowDialog())
-			{
-				string path = folderBrowserDialog.FileName;
+        private void menuItemAddFolder_Click(object sender, EventArgs e)
+        {
+            if (folderBrowserDialog.ShowDialog())
+            {
+                string path = folderBrowserDialog.FileName;
 
                 AddFolder(path);
-			}
-		}
+            }
+        }
 
         private void AddFile(string fileName)
         {
@@ -297,417 +291,395 @@ namespace pocorall.SCM_Notifier
                 SelectFolder(fileName);
         }
 
-		private void menuItemAddFile_Click (object sender, EventArgs e)
-		{
-			if (openFileDialog.ShowDialog() == DialogResult.OK)
-			{
-				string fileName = openFileDialog.FileName;
+        private void menuItemAddFile_Click(object sender, EventArgs e)
+        {
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string fileName = openFileDialog.FileName;
 
                 AddFile(fileName);
-			}
-		}
+            }
+        }
 
+        private void menuItemDelete_Click(object sender, EventArgs e)
+        {
+            if (listViewFolders.SelectedIndices.Count > 0)
+            {
+                int selectedIndex = listViewFolders.SelectedIndices[0];
+                string path = folders[listViewFolders.SelectedIndices[0]].Path;
 
-		private void menuItemDelete_Click (object sender, EventArgs e)
-		{
-			if (listViewFolders.SelectedIndices.Count > 0)
-			{
-				int selectedIndex = listViewFolders.SelectedIndices[0];
-				string path = folders[listViewFolders.SelectedIndices[0]].Path;
+                if (MessageBox.Show("Are you sure to remove " + path + " from list?", "SCM Notifier", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+                    return;
 
-				if (MessageBox.Show ("Are you sure to remove " + path + " from list?", "SCM Notifier", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
-					return;
+                folders.RemoveAt(selectedIndex);
 
-				folders.RemoveAt (selectedIndex);
+                listViewFolders.Items.RemoveAt(selectedIndex);
+                UpdateListViewFolderNames();
+                newNonUpdatedFolders.Clear();
 
-				listViewFolders.Items.RemoveAt (selectedIndex);
-				UpdateListViewFolderNames();
-				newNonUpdatedFolders.Clear();
+                Config.SaveSvnFolders(folders);
 
-				Config.SaveSvnFolders (folders);
+                UpdateTray(true);
+                BeginUpdateFolderStatuses();
+            }
+        }
 
-				UpdateTray (true);
-				BeginUpdateFolderStatuses();
-			}
-		}
+        private void menuItemCheckNewVersion_Click(object sender, EventArgs e)
+        {
+            forcedCheckForNewVersion = true;
+            BeginUpdateFolderStatuses();
+        }
 
+        #endregion Main menu handlers
 
-		private void menuItemCheckNewVersion_Click (object sender, EventArgs e)
-		{
-			forcedCheckForNewVersion = true;
-			BeginUpdateFolderStatuses();
-		}
+        //////////////////////////////////////////////////////////////////////////////
 
-		#endregion
+        #region Toolbar button handlers
 
-		//////////////////////////////////////////////////////////////////////////////
+        private void btnUpdate_Click(object sender, EventArgs e)
+        {
+            UpdateFolder();
+        }
 
-		#region Toolbar button handlers
+        private void btnCommit_Click(object sender, EventArgs e)
+        {
+            CommitFolder();
+        }
 
-		private void btnUpdate_Click (object sender, EventArgs e)
-		{
-			UpdateFolder();
-		}
+        private void btnOpenFolder_Click(object sender, EventArgs e)
+        {
+            OpenFolder();
+        }
 
+        private void btnChangeLog_Click(object sender, EventArgs e)
+        {
+            ShowChangeLog();
+        }
 
-		private void btnCommit_Click (object sender, EventArgs e)
-		{
-			CommitFolder();
-		}
+        private void btnLog_Click(object sender, EventArgs e)
+        {
+            ShowFullLog();
+        }
 
+        private void btnFetch_Click(object sender, EventArgs e)
+        {
+            ShowFetch();
+        }
 
-		private void btnOpenFolder_Click (object sender, EventArgs e)
-		{
-			OpenFolder();
-		}
+        #endregion Toolbar button handlers
 
+        //////////////////////////////////////////////////////////////////////////////
 
-		private void btnChangeLog_Click (object sender, EventArgs e)
-		{
-			ShowChangeLog();
-		}
+        #region Context menu handlers
 
+        private void checkNowToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (listViewFolders.SelectedIndices.Count == 0)
+                return;
 
-		private void btnLog_Click (object sender, EventArgs e)
-		{
-			ShowFullLog();
-		}
+            int selectedIndex = listViewFolders.SelectedIndices[0];
+            forcedFolders.Enqueue(folders[selectedIndex]);
+            BeginUpdateFolderStatuses();
+        }
 
+        private void updateToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            UpdateFolder();
+        }
 
-		private void btnFetch_Click (object sender, EventArgs e)
-		{
-			ShowFetch();
-		}
+        private void commitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            CommitFolder();
+        }
 
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFolder();
+        }
 
-		#endregion
+        private void changeLogToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ShowChangeLog();
+        }
 
-		//////////////////////////////////////////////////////////////////////////////
+        private void contextMenuItemLog_Click(object sender, EventArgs e)
+        {
+            ShowFullLog();
+        }
 
-		#region Context menu handlers
+        private void contextMenuItemFetch_Click(object sender, EventArgs e)
+        {
+            ShowFetch();
+        }
 
-		private void checkNowToolStripMenuItem_Click (object sender, EventArgs e)
-		{
-			if (listViewFolders.SelectedIndices.Count == 0)
-				return;
+        private void propertiesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int selectedIndex = listViewFolders.SelectedIndices[0];
+            ScmRepository folder = folders[selectedIndex];
 
-			int selectedIndex = listViewFolders.SelectedIndices[0];
-			forcedFolders.Enqueue (folders[selectedIndex]);
-			BeginUpdateFolderStatuses();
-		}
-
-
-		private void updateToolStripMenuItem_Click (object sender, EventArgs e)
-		{
-			UpdateFolder();
-		}
-
-
-		private void commitToolStripMenuItem_Click (object sender, EventArgs e)
-		{
-			CommitFolder();
-		}
-
-
-		private void openToolStripMenuItem_Click (object sender, EventArgs e)
-		{
-			OpenFolder();
-		}
-
-
-		private void changeLogToolStripMenuItem_Click (object sender, EventArgs e)
-		{
-			ShowChangeLog();
-		}
-
-
-		private void contextMenuItemLog_Click (object sender, EventArgs e)
-		{
-			ShowFullLog();
-		}
-
-
-		private void contextMenuItemFetch_Click (object sender, EventArgs e)
-		{
-			ShowFetch();
-		}
-
-
-		private void propertiesToolStripMenuItem_Click (object sender, EventArgs e)
-		{
-			int selectedIndex = listViewFolders.SelectedIndices[0];
-			ScmRepository folder = folders[selectedIndex];
-
-			if (new SettingsProjectForm (folder).ShowDialog (this) == DialogResult.OK)
-			{
-				listViewFolders.Items[selectedIndex].Text = folder.Path;
-				if (folder.Disable)
-				{
-					folder.Status = ScmRepositoryStatus.Unknown;
-					listViewFolders.Items[selectedIndex].Font = new Font (listViewFolders.Font, FontStyle.Strikeout);
-					listViewFolders.Items[selectedIndex].ForeColor = Color.LightGray;
+            if (new SettingsProjectForm(folder).ShowDialog(this) == DialogResult.OK)
+            {
+                listViewFolders.Items[selectedIndex].Text = folder.Path;
+                if (folder.Disable)
+                {
+                    folder.Status = ScmRepositoryStatus.Unknown;
+                    listViewFolders.Items[selectedIndex].Font = new Font(listViewFolders.Font, FontStyle.Strikeout);
+                    listViewFolders.Items[selectedIndex].ForeColor = Color.LightGray;
                     listViewFolders.Items[selectedIndex].ImageKey = folder.IconName;
-				}
-				else
-				{
-					listViewFolders.Items[selectedIndex].Font = listViewFolders.Font;
-					listViewFolders.Items[selectedIndex].ForeColor = SystemColors.WindowText;
-				}
+                }
+                else
+                {
+                    listViewFolders.Items[selectedIndex].Font = listViewFolders.Font;
+                    listViewFolders.Items[selectedIndex].ForeColor = SystemColors.WindowText;
+                }
 
-				newNonUpdatedFolders.Clear();
+                newNonUpdatedFolders.Clear();
 
-				UpdateListViewFolderNames();
+                UpdateListViewFolderNames();
 
-				Config.SaveSvnFolders (folders);
+                Config.SaveSvnFolders(folders);
 
-				UpdateTray (true);
-				BeginUpdateFolderStatuses();
-			}
-		}
+                UpdateTray(true);
+                BeginUpdateFolderStatuses();
+            }
+        }
 
+        private void contextMenuStrip_Opening(object sender, CancelEventArgs e)
+        {
+            UpdateContextMenuItem();
+        }
 
-		private void contextMenuStrip_Opening (object sender, CancelEventArgs e)
-		{
-			UpdateContextMenuItem();
-		}
-
-
-		private void UpdateContextMenuItem()
-		{
-			checkNowToolStripMenuItem.Enabled =
-				commitToolStripMenuItem.Enabled =
-				updateToolStripMenuItem.Enabled =
-				changeLogToolStripMenuItem.Enabled =
-				logToolStripMenuItem.Enabled =
-				fetchToolStripMenuItem.Enabled =
-				propertiesToolStripMenuItem.Enabled =
+        private void UpdateContextMenuItem()
+        {
+            checkNowToolStripMenuItem.Enabled =
+                commitToolStripMenuItem.Enabled =
+                updateToolStripMenuItem.Enabled =
+                changeLogToolStripMenuItem.Enabled =
+                logToolStripMenuItem.Enabled =
+                fetchToolStripMenuItem.Enabled =
+                propertiesToolStripMenuItem.Enabled =
                 sortListToolStripMenuItem.Enabled = false;
 
             openToolStripMenuItem.Enabled = btnOpenFolder.Enabled;
 
             if (listViewFolders.SelectedIndices.Count == 0) return;
 
-			int selectedIndex = listViewFolders.SelectedIndices[0];
-			if (folders[selectedIndex] is GitRepository)
-			{
-				fetchToolStripMenuItem.Visible = true;
-			}
-			else
-			{
-				fetchToolStripMenuItem.Visible = false;
-			}
-			switch (folders[selectedIndex].Status)
-			{
-				case ScmRepositoryStatus.NeedUpdate:
-					checkNowToolStripMenuItem.Enabled =
-						updateToolStripMenuItem.Enabled =
-						changeLogToolStripMenuItem.Enabled =
-						logToolStripMenuItem.Enabled =
-						fetchToolStripMenuItem.Enabled =
-						propertiesToolStripMenuItem.Enabled =
+            int selectedIndex = listViewFolders.SelectedIndices[0];
+            if (folders[selectedIndex] is GitRepository)
+            {
+                fetchToolStripMenuItem.Visible = true;
+            }
+            else
+            {
+                fetchToolStripMenuItem.Visible = false;
+            }
+            switch (folders[selectedIndex].Status)
+            {
+                case ScmRepositoryStatus.NeedUpdate:
+                    checkNowToolStripMenuItem.Enabled =
+                        updateToolStripMenuItem.Enabled =
+                        changeLogToolStripMenuItem.Enabled =
+                        logToolStripMenuItem.Enabled =
+                        fetchToolStripMenuItem.Enabled =
+                        propertiesToolStripMenuItem.Enabled =
                         sortListToolStripMenuItem.Enabled = true;
-					break;
+                    break;
 
-				case ScmRepositoryStatus.NeedUpdate_Modified:
-					checkNowToolStripMenuItem.Enabled =
-						commitToolStripMenuItem.Enabled =
-						updateToolStripMenuItem.Enabled =
-						changeLogToolStripMenuItem.Enabled =
-						logToolStripMenuItem.Enabled =
-						fetchToolStripMenuItem.Enabled =
-						propertiesToolStripMenuItem.Enabled =
+                case ScmRepositoryStatus.NeedUpdate_Modified:
+                    checkNowToolStripMenuItem.Enabled =
+                        commitToolStripMenuItem.Enabled =
+                        updateToolStripMenuItem.Enabled =
+                        changeLogToolStripMenuItem.Enabled =
+                        logToolStripMenuItem.Enabled =
+                        fetchToolStripMenuItem.Enabled =
+                        propertiesToolStripMenuItem.Enabled =
                         sortListToolStripMenuItem.Enabled = true;
-					break;
+                    break;
 
-				case ScmRepositoryStatus.UpToDate_Modified:
-					checkNowToolStripMenuItem.Enabled =
-						commitToolStripMenuItem.Enabled =
-						logToolStripMenuItem.Enabled =
-						fetchToolStripMenuItem.Enabled =
-						propertiesToolStripMenuItem.Enabled =
+                case ScmRepositoryStatus.UpToDate_Modified:
+                    checkNowToolStripMenuItem.Enabled =
+                        commitToolStripMenuItem.Enabled =
+                        logToolStripMenuItem.Enabled =
+                        fetchToolStripMenuItem.Enabled =
+                        propertiesToolStripMenuItem.Enabled =
                         sortListToolStripMenuItem.Enabled = true;
-					break;
+                    break;
 
-				case ScmRepositoryStatus.UpToDate:
-					checkNowToolStripMenuItem.Enabled =
-						logToolStripMenuItem.Enabled =
-						fetchToolStripMenuItem.Enabled =
-						propertiesToolStripMenuItem.Enabled =
+                case ScmRepositoryStatus.UpToDate:
+                    checkNowToolStripMenuItem.Enabled =
+                        logToolStripMenuItem.Enabled =
+                        fetchToolStripMenuItem.Enabled =
+                        propertiesToolStripMenuItem.Enabled =
                         sortListToolStripMenuItem.Enabled = true;
-					break;
+                    break;
 
-				case ScmRepositoryStatus.Unknown:
-					checkNowToolStripMenuItem.Enabled =
-						propertiesToolStripMenuItem.Enabled =
+                case ScmRepositoryStatus.Unknown:
+                    checkNowToolStripMenuItem.Enabled =
+                        propertiesToolStripMenuItem.Enabled =
                         sortListToolStripMenuItem.Enabled = true;
-					break;
+                    break;
 
-				case ScmRepositoryStatus.Error:
-					checkNowToolStripMenuItem.Enabled =
-						propertiesToolStripMenuItem.Enabled =
+                case ScmRepositoryStatus.Error:
+                    checkNowToolStripMenuItem.Enabled =
+                        propertiesToolStripMenuItem.Enabled =
                         sortListToolStripMenuItem.Enabled = true;
-					break;
-			}
-		}
+                    break;
+            }
+        }
 
-		#endregion
+        #endregion Context menu handlers
 
-		//////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////////////
 
-		#region Tray menu handlers
+        #region Tray menu handlers
 
-		private void menuItem_ShowList_Click (object sender, EventArgs e)
-		{
-			ShowFolderList();
-		}
+        private void menuItem_ShowList_Click(object sender, EventArgs e)
+        {
+            ShowFolderList();
+        }
 
+        private void menuItem_Exit_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
 
-		private void menuItem_Exit_Click (object sender, EventArgs e)
-		{
-			Application.Exit();
-		}
+        private void menuItem_UpdateAll_Click(object sender, EventArgs e)
+        {
+            UpdateAll();
+        }
 
-		private void menuItem_UpdateAll_Click (object sender, EventArgs e)
-		{
-			UpdateAll();
-		}
+        #endregion Tray menu handlers
 
-		#endregion
+        ////////////////////////////////////////////////////////////////////////////////////
 
-		////////////////////////////////////////////////////////////////////////////////////
+        #region listViewFolders handlers
 
-		#region listViewFolders handlers
+        private void listViewFolders_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (listViewFolders.SelectedIndices.Count > 0)
+            {
+                ScmRepository folder = folders[listViewFolders.SelectedIndices[0]];
+                btnFetch.Visible = false;
 
-		private void listViewFolders_SelectedIndexChanged (object sender, EventArgs e)
-		{
-			if (listViewFolders.SelectedIndices.Count > 0)
-			{
-				ScmRepository folder = folders[listViewFolders.SelectedIndices[0]];
-				btnFetch.Visible = false;
+                btnChangeLog.Enabled = btnUpdate.Enabled = btnLog.Enabled = false;
 
-				btnChangeLog.Enabled = btnUpdate.Enabled = btnLog.Enabled = false;
+                if ((folder.Status == ScmRepositoryStatus.NeedUpdate) || (folder.Status == ScmRepositoryStatus.NeedUpdate_Modified))
+                    btnChangeLog.Enabled = btnUpdate.Enabled = btnLog.Enabled = true;
+                else if ((folder.Status == ScmRepositoryStatus.UpToDate) || (folder.Status == ScmRepositoryStatus.UpToDate_Modified))
+                    btnLog.Enabled = true;
 
-				if ((folder.Status == ScmRepositoryStatus.NeedUpdate) || (folder.Status == ScmRepositoryStatus.NeedUpdate_Modified))
-					btnChangeLog.Enabled = btnUpdate.Enabled = btnLog.Enabled = true;
-				else if ((folder.Status == ScmRepositoryStatus.UpToDate) || (folder.Status == ScmRepositoryStatus.UpToDate_Modified))
-					btnLog.Enabled = true;
+                if ((folder.Status == ScmRepositoryStatus.NeedUpdate_Modified) || (folder.Status == ScmRepositoryStatus.UpToDate_Modified))
+                    btnCommit.Enabled = true;
 
-				if ((folder.Status == ScmRepositoryStatus.NeedUpdate_Modified) || (folder.Status == ScmRepositoryStatus.UpToDate_Modified))
-					btnCommit.Enabled = true;
+                if (folder is GitRepository)
+                {
+                    btnFetch.Visible = true;
+                    btnFetch.Enabled = btnLog.Enabled;
+                }
 
-
-				if (folder is GitRepository)
-				{
-					btnFetch.Visible = true;
-					btnFetch.Enabled = btnLog.Enabled;
-				}
-
-				// Disable Log Button when GitUIPath not configured
-				if (folder is GitRepository && (Config.GitUIPath == null || !File.Exists(Config.GitUIPath)))
-				{
-					btnLog.Enabled = false;
-					btnFetch.Enabled = false;
-				}
+                // Disable Log Button when GitUIPath not configured
+                if (folder is GitRepository && (Config.GitUIPath == null || !File.Exists(Config.GitUIPath)))
+                {
+                    btnLog.Enabled = false;
+                    btnFetch.Enabled = false;
+                }
                 // MW: Override log button enabling if TortoiseGit not installed or defined
-				if (folder.Serialize().ToUpper().StartsWith("GIT") && (Config.GitUIPath == null || !File.Exists(Config.GitUIPath)))
-				{
-					btnLog.Enabled = false;
-					btnFetch.Enabled = false;
-				}
+                if (folder.Serialize().ToUpper().StartsWith("GIT") && (Config.GitUIPath == null || !File.Exists(Config.GitUIPath)))
+                {
+                    btnLog.Enabled = false;
+                    btnFetch.Enabled = false;
+                }
 
                 deleteToolStripMenuItem.Enabled = true;
-				btnDelete.Enabled = true;
+                btnDelete.Enabled = true;
                 btnOpenFolder.Enabled = Directory.Exists(folder.Path) || File.Exists(folder.Path);
 
                 Text = Application.ProductName + " - " + folder.Path;
-			}
-			else
-			{
-				btnChangeLog.Enabled = false;
-				btnUpdate.Enabled = false;
-				btnCommit.Enabled = false;
-				deleteToolStripMenuItem.Enabled = false;
-				btnDelete.Enabled = false;
+            }
+            else
+            {
+                btnChangeLog.Enabled = false;
+                btnUpdate.Enabled = false;
+                btnCommit.Enabled = false;
+                deleteToolStripMenuItem.Enabled = false;
+                btnDelete.Enabled = false;
                 btnOpenFolder.Enabled = false;
-				btnLog.Enabled = false;
-				btnFetch.Enabled = false;
-				btnFetch.Visible = false;
+                btnLog.Enabled = false;
+                btnFetch.Enabled = false;
+                btnFetch.Visible = false;
 
-				Text = Application.ProductName;
-			}
-		}
+                Text = Application.ProductName;
+            }
+        }
 
+        private void listViewFolders_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Delete:
+                    menuItemDelete_Click(sender, null);
+                    break;
 
-		private void listViewFolders_KeyDown (object sender, KeyEventArgs e)
-		{
-			switch (e.KeyCode)
-			{
-				case Keys.Delete:
-					menuItemDelete_Click (sender, null);
-					break;
+                case Keys.Insert:
+                    menuItemAddFolder_Click(sender, null);
+                    break;
 
-				case Keys.Insert:
-					menuItemAddFolder_Click (sender, null);
-					break;
+                case Keys.Enter:
+                    listViewFolders_DoubleClick(sender, null);
+                    break;
+            }
+        }
 
-				case Keys.Enter:
-					listViewFolders_DoubleClick (sender, null);
-					break;
-			}
-		}
+        private void listViewFolders_DoubleClick(object sender, EventArgs e)
+        {
+            switch (Config.ItemDoubleClickAction)
+            {
+                case Config.Action.openAction:
+                    if (btnOpenFolder.Enabled)
+                        OpenFolder();
+                    break;
 
+                case Config.Action.logAction:
+                    if (btnChangeLog.Enabled)
+                        ShowChangeLog();
+                    else if (btnLog.Enabled)
+                        ShowFullLog();
+                    break;
 
-		private void listViewFolders_DoubleClick(object sender, EventArgs e)
-		{
-			switch (Config.ItemDoubleClickAction)
-			{
-				case Config.Action.openAction:
-					if (btnOpenFolder.Enabled)
-						OpenFolder();
-					break;
+                case Config.Action.fetchAction:
+                    if (btnFetch.Enabled)
+                        ShowFetch();
+                    break;
 
-				case Config.Action.logAction:
-					if (btnChangeLog.Enabled)
-						ShowChangeLog();
-					else if (btnLog.Enabled)
-						ShowFullLog();
-					break;
+                case Config.Action.updateAction:
+                    if (btnUpdate.Enabled)
+                        UpdateFolder();
+                    break;
 
-				case Config.Action.fetchAction:
-					if (btnFetch.Enabled)
-						ShowFetch();
-					break;
+                case Config.Action.commitAction:
+                    if (btnCommit.Enabled)
+                        CommitFolder();
+                    break;
 
-				case Config.Action.updateAction:
-					if (btnUpdate.Enabled)
-						UpdateFolder();
-					break;
+                case Config.Action.checkNow:
+                    int selectedIndex = listViewFolders.SelectedIndices[0];
+                    forcedFolders.Enqueue(folders[selectedIndex]);
+                    BeginUpdateFolderStatuses();
+                    break;
+            }
+        }
 
-				case Config.Action.commitAction:
-					if (btnCommit.Enabled)
-						CommitFolder();
-					break;
-
-				case Config.Action.checkNow:
-					int selectedIndex = listViewFolders.SelectedIndices[0];
-					forcedFolders.Enqueue (folders[selectedIndex]);
-					BeginUpdateFolderStatuses();
-					break;
-			}
-		}
-
-
-		private void listViewFolders_DragDrop(object sender, DragEventArgs e)
-		{
+        private void listViewFolders_DragDrop(object sender, DragEventArgs e)
+        {
             // Determine whether dropped object is a file or folder.
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] filePath = ((string[])e.Data.GetData(DataFormats.FileDrop));
                 foreach (string p in filePath)
                 {
-                    if(File.Exists(p))
+                    if (File.Exists(p))
                         AddFile(p);
-                    else if(Directory.Exists(p))
+                    else if (Directory.Exists(p))
                         AddFolder(p);
                 }
             }
@@ -728,692 +700,669 @@ namespace pocorall.SCM_Notifier
                     OnThreadException(this, new ThreadExceptionEventArgs(ex));
                 }
             }
-		}
+        }
 
+        #endregion listViewFolders handlers
 
-		#endregion
+        ////////////////////////////////////////////////////////////////////////////////////
 
-		////////////////////////////////////////////////////////////////////////////////////
+        #region NotifyIcon handlers
 
-		#region NotifyIcon handlers
+        private void notifyIcon_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right)
+            {
+                ShowFolderList();
+                ShowInTaskbar = Config.ShowInTaskbar;
+            }
+        }
 
-		private void notifyIcon_MouseClick (object sender, MouseEventArgs e)
-		{
-			if (e.Button != MouseButtons.Right)
-			{
-				ShowFolderList();
-				ShowInTaskbar = Config.ShowInTaskbar;
-			}
-		}
+        private void notifyIcon_BalloonTipClicked(object sender, EventArgs e)
+        {
+            ShowFolderList();
+            ShowInTaskbar = Config.ShowInTaskbar;
 
+            if (firstBalloonPath != null)
+                SelectFolder(firstBalloonPath);
+        }
 
-		private void notifyIcon_BalloonTipClicked (object sender, EventArgs e)
-		{
-			ShowFolderList();
-			ShowInTaskbar = Config.ShowInTaskbar;
+        #endregion NotifyIcon handlers
 
-			if (firstBalloonPath != null)
-				SelectFolder (firstBalloonPath);
-		}
-		#endregion
+        ////////////////////////////////////////////////////////////////////////////////////
 
-		////////////////////////////////////////////////////////////////////////////////////
+        #region MainForm handlers
 
-		#region MainForm handlers
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+                Hide();
 
-		private void MainForm_KeyDown (object sender, KeyEventArgs e)
-		{
-			if (e.KeyCode == Keys.Escape)
-				Hide();
+            e.Handled = false;
+        }
 
-			e.Handled = false;
-		}
+        private void MainForm_Closing(object sender, CancelEventArgs e)
+        {
+            if (!sessionEndInProgress)
+            {
+                e.Cancel = true;
+                Hide();
+            }
+        }
 
+        private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            RemovePowerEventListener();
+        }
 
-		private void MainForm_Closing (object sender, CancelEventArgs e)
-		{
-			if (!sessionEndInProgress)
-			{
-				e.Cancel = true;
-				Hide();
-			}
-		}
+        private void MainForm_Activated(object sender, EventArgs e)
+        {
+            FormStateChanged(true);
+            BeginUpdateFolderStatuses();
+        }
 
-		private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
-		{
-			RemovePowerEventListener();
-		}
+        private void MainForm_Deactivate(object sender, EventArgs e)
+        {
+            FormStateChanged(false);
+        }
 
-		private void MainForm_Activated (object sender, EventArgs e)
-		{
-			FormStateChanged (true);
-			BeginUpdateFolderStatuses();
-		}
+        private void MainForm_ResizeEnd(object sender, EventArgs e)
+        {
+            if (WindowState == FormWindowState.Normal)
+                Config.SaveMainFormSize(Width, Height);
+        }
 
+        #endregion MainForm handlers
 
-		private void MainForm_Deactivate (object sender, EventArgs e)
-		{
-			FormStateChanged (false);
-		}
+        ////////////////////////////////////////////////////////////////////////////////////
 
+        private void ShowFolderList()
+        {
+            Show();
+            if (WindowState == FormWindowState.Minimized)
+                WindowState = FormWindowState.Normal;
+            Activate();
+        }
 
-		private void MainForm_ResizeEnd (object sender, EventArgs e)
-		{
-			if (WindowState == FormWindowState.Normal)
-				Config.SaveMainFormSize (Width, Height);
-		}
+        ////////////////////////////////////////////////////////////////////////////////////
 
+        private readonly SvnFolderCollection newNonUpdatedFolders = new SvnFolderCollection();
 
-		#endregion
+        private delegate void UpdateListViewMethod(ScmRepository folder, ScmRepositoryStatusEx folderStatus, DateTime statusTime);
 
-		////////////////////////////////////////////////////////////////////////////////////
+        private delegate void SetStatusBarTextMethod(string text);
 
-		private void ShowFolderList()
-		{
-			Show();
-			if (WindowState == FormWindowState.Minimized)
-				WindowState = FormWindowState.Normal;
-			Activate();
-		}
+        private delegate void UpdateErrorLogMethod(string path, string error);
 
-		////////////////////////////////////////////////////////////////////////////////////
+        private delegate void CheckedInvokeMethod(Delegate method, object[] args);
 
-		private readonly SvnFolderCollection newNonUpdatedFolders = new SvnFolderCollection();
-		private delegate void UpdateListViewMethod (ScmRepository folder, ScmRepositoryStatusEx folderStatus, DateTime statusTime);
-		private delegate void SetStatusBarTextMethod (string text);
-		private delegate void UpdateErrorLogMethod (string path, string error);
-		private delegate void CheckedInvokeMethod (Delegate method, object[] args);
-		private delegate void ShowUpdateErrorsMethod (ScmRepositoryProcess sfp);
+        private delegate void ShowUpdateErrorsMethod(ScmRepositoryProcess sfp);
 
-		internal static Thread statusThread;
-		string firstBalloonPath;
-		private bool formIsActive;
-		private readonly IntPtr currentProcessHandle = Process.GetCurrentProcess().Handle;
-		private bool repeatInvoke;
+        internal static Thread statusThread;
+        private string firstBalloonPath;
+        private bool formIsActive;
+        private readonly IntPtr currentProcessHandle = Process.GetCurrentProcess().Handle;
+        private bool repeatInvoke;
 
-		////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////
 
-		#region Checking for new version
+        #region Checking for new version
 
-		private bool forcedCheckForNewVersion;							// Means manually called from main menu
-		private DateTime lastTimeOfCheckForNewVersion = DateTime.MinValue;		// Force to check at startup
-		private Version lastStableVersion;
+        private bool forcedCheckForNewVersion;                          // Means manually called from main menu
+        private DateTime lastTimeOfCheckForNewVersion = DateTime.MinValue;      // Force to check at startup
+        private Version lastStableVersion;
 
-
-		/// <summary>
-		/// Executed on working thread
-		/// </summary>
-		private void CheckForNewVersion (bool forceShowResult)
-		{
+        /// <summary>
+        /// Executed on working thread
+        /// </summary>
+        private void CheckForNewVersion(bool forceShowResult)
+        {
             string lastStableVersionInfo = ReadFromWeb("https://pocorall.github.io/scm-notifier/LastStableVersion.txt");
 
-			if (lastStableVersionInfo != null)
-			{
-				lastStableVersion = new Version (lastStableVersionInfo.Split ('\n')[0]);
+            if (lastStableVersionInfo != null)
+            {
+                lastStableVersion = new Version(lastStableVersionInfo.Split('\n')[0]);
 
-				if ((lastStableVersion > AboutForm.Version) ||
-					((lastStableVersion == AboutForm.Version) && (AboutForm.VersionStatus != "")))	// if alpha/beta version
-				{
-					SafeInvoke (new MethodInvoker (ShowNewVersion), null, Int32.MaxValue);
-				}
-				else if (forceShowResult)
-				{
-					SafeInvoke (new MethodInvoker (ShowNoNewVersion), null, Int32.MaxValue);
-				}
-			}
-			else if (forceShowResult)
-			{
-				SafeInvoke (new MethodInvoker (ErrorCheckingForNewVersion), null, Int32.MaxValue);
-			}
-		}
+                if ((lastStableVersion > AboutForm.Version) ||
+                    ((lastStableVersion == AboutForm.Version) && (AboutForm.VersionStatus != "")))  // if alpha/beta version
+                {
+                    SafeInvoke(new MethodInvoker(ShowNewVersion), null, Int32.MaxValue);
+                }
+                else if (forceShowResult)
+                {
+                    SafeInvoke(new MethodInvoker(ShowNoNewVersion), null, Int32.MaxValue);
+                }
+            }
+            else if (forceShowResult)
+            {
+                SafeInvoke(new MethodInvoker(ErrorCheckingForNewVersion), null, Int32.MaxValue);
+            }
+        }
 
+        private static string ReadFromWeb(string url)
+        {
+            try
+            {
+                WebClient web = new WebClient();
+                Stream s = web.OpenRead(url);
+                string content = new StreamReader(s).ReadToEnd();
 
-		private static string ReadFromWeb (string url)
-		{
-			try
-			{
-				WebClient web = new WebClient();
-				Stream s = web.OpenRead (url);
-				string content = new StreamReader (s).ReadToEnd();
+                if ((content.Length < 5) || (content.Length > 15))
+                    return null;    // Bad content
 
-				if ((content.Length < 5) || (content.Length > 15))
-					return null;	// Bad content
+                return content;
+            }
+            catch
+            {
+                return null;        // Problem with web connection
+            }
+        }
 
-				return content;
-			}
-			catch
-			{
-				return null;		// Problem with web connection
-			}
-		}
+        private void ShowNewVersion()
+        {
+            if (MessageBox.Show(
+                "New stable version of SCM Notifier is available - v" + lastStableVersion + "\n" +
+                "Do you want to go to the project home page?",
+                "SCM Notifier",
+                MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.OK)
+                new AboutForm().ShowDialog();
+        }
 
+        private static void ShowNoNewVersion()
+        {
+            MessageBox.Show("You are using latest version of SCM Notifier.",
+                "SCM Notifier", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
 
-		private void ShowNewVersion()
-		{
-			if (MessageBox.Show (
-				"New stable version of SCM Notifier is available - v" + lastStableVersion + "\n" +
-				"Do you want to go to the project home page?",
-				"SCM Notifier",
-				MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.OK)
-				new AboutForm().ShowDialog();
-		}
+        private static void ErrorCheckingForNewVersion()
+        {
+            MessageBox.Show("Can't check for new version!",
+                "SCM Notifier", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
 
+        #endregion Checking for new version
 
-		private static void ShowNoNewVersion()
-		{
-			MessageBox.Show ("You are using latest version of SCM Notifier.",
-				"SCM Notifier", MessageBoxButtons.OK, MessageBoxIcon.Information);
-		}
+        ////////////////////////////////////////////////////////////////////////////////////
 
+        private void FormStateChanged(bool _formIsActive)
+        {
+            formIsActive = _formIsActive;
 
-		private static void ErrorCheckingForNewVersion()
-		{
-			MessageBox.Show ("Can't check for new version!",
-				"SCM Notifier", MessageBoxButtons.OK, MessageBoxIcon.Error);
-		}
+            bool startTimer = statusUpdateTimer.Enabled;
+            statusUpdateTimer.Stop();
 
-		#endregion
+            if (startTimer) StartTimer();
+        }
 
-		////////////////////////////////////////////////////////////////////////////////////
+        private void StartTimer()
+        {
+            pauseTimer.Stop(); // Could be running if Form is activated shortly after startup
 
-		private void FormStateChanged (bool _formIsActive)
-		{
-			formIsActive = _formIsActive;
+            int intervalMs = folders.FindNextStatusUpdateTimeMs(formIsActive);
 
-			bool startTimer = statusUpdateTimer.Enabled;
-			statusUpdateTimer.Stop();
+            if ((intervalMs > 333) && (ScmRepository.scmFolderProcesses.Count > 0))
+                intervalMs = 333;   // Wait commit process(es) finish at least 3 times per second
 
-			if (startTimer) StartTimer();
-		}
+            statusUpdateTimer.Interval = intervalMs == 0 ? 1 : intervalMs;
+            statusUpdateTimer.Start();
+        }
 
+        private void statusUpdateTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            BeginUpdateFolderStatuses();
+        }
 
-		private void StartTimer()
-		{
-			pauseTimer.Stop(); // Could be running if Form is activated shortly after startup
+        private void pauseTimer_Tick(object sender, EventArgs e)
+        {
+            pauseTimer.Stop();
+            StartTimer();
+        }
 
-			int intervalMs = folders.FindNextStatusUpdateTimeMs (formIsActive);
+        private void BeginUpdateFolderStatuses()
+        {
+            if ((folders.Count > 0) || forcedCheckForNewVersion)
+            {
+                statusUpdateTimer.Stop();
 
-			if ((intervalMs > 333) && (ScmRepository.scmFolderProcesses.Count > 0))
-				intervalMs = 333;	// Wait commit process(es) finish at least 3 times per second
+                lock (this)
+                {
+                    if (statusThread == null)
+                    {
+                        reupdateStatus = false;
 
-			statusUpdateTimer.Interval = intervalMs == 0 ? 1 : intervalMs;
-			statusUpdateTimer.Start();
-		}
+                        statusThread = new Thread(StatusUpdateThread_Run);
+                        statusThread.Start();
+                    }
+                    else
+                        reupdateStatus = true;
+                }
+            }
+        }
 
+        /// <summary>
+        /// Executed on working thread
+        /// </summary>
+        private void StatusUpdateThread_Run()
+        {
+            try
+            {
+                while (!Created) Thread.Sleep(10);
 
-		private void statusUpdateTimer_Elapsed (object sender, ElapsedEventArgs e)
-		{
-			BeginUpdateFolderStatuses();
-		}
+                while (true)
+                {
+                    SafeInvoke(new MethodInvoker(BeginUpdateListView));
 
-		private void pauseTimer_Tick(object sender, EventArgs e)
-		{
-			pauseTimer.Stop();
-			StartTimer();
-		}
+                    foreach (ScmRepository folder in (SvnFolderCollection)folders.Clone())
+                    {
+                        if (folder.Disable) continue;
 
-		private void BeginUpdateFolderStatuses()
-		{
-			if ((folders.Count > 0) || forcedCheckForNewVersion)
-			{
-				statusUpdateTimer.Stop();
+                        updateNotInProgress.WaitOne();
 
-				lock (this)
-				{
-					if (statusThread == null)
-					{
-						reupdateStatus = false;
+                        if (forcedCheckForNewVersion)
+                        {
+                            forcedCheckForNewVersion = false;
+                            lastTimeOfCheckForNewVersion = DateTime.Now;
+                            SafeInvoke(new SetStatusBarTextMethod(SetStatusBarText), new object[] { "Checking for new version..." });
+                            CheckForNewVersion(true);
+                        }
 
-						statusThread = new Thread (StatusUpdateThread_Run);
-						statusThread.Start();
-					}
-					else
-						reupdateStatus = true;
-				}
-			}
-		}
+                        bool skipUpdateStatus = false;
 
+                        // Check commit and update processes for finishing
+                        for (int i = 0; i < ScmRepository.scmFolderProcesses.Count; i++)
+                        {
+                            var sfp = ScmRepository.scmFolderProcesses[i];
 
-		/// <summary>
-		/// Executed on working thread
-		/// </summary>
-		private void StatusUpdateThread_Run()
-		{
-			try
-			{
-				while (!Created) Thread.Sleep (10);
+                            if (sfp.process.HasExited)
+                            {
+                                if (sfp.isUpdateCommand && sfp.updateError)
+                                    SafeInvoke(new ShowUpdateErrorsMethod(ShowUpdateErrors), new object[] { sfp }, Int32.MaxValue);
 
-				while (true)
-				{
-					SafeInvoke (new MethodInvoker (BeginUpdateListView));
-
-					foreach (ScmRepository folder in (SvnFolderCollection) folders.Clone())
-					{
-						if (folder.Disable) continue;
-
-						updateNotInProgress.WaitOne();
-
-						if (forcedCheckForNewVersion)
-						{
-							forcedCheckForNewVersion = false;
-							lastTimeOfCheckForNewVersion = DateTime.Now;
-							SafeInvoke (new SetStatusBarTextMethod (SetStatusBarText), new object[] {"Checking for new version..."});
-							CheckForNewVersion (true);
-						}
-
-						bool skipUpdateStatus = false;
-
-						// Check commit and update processes for finishing
-						for (int i = 0; i < ScmRepository.scmFolderProcesses.Count; i++)
-						{
-                            var sfp = (ScmRepositoryProcess)ScmRepository.scmFolderProcesses[i];
-
-							if (sfp.process.HasExited)
-							{
-								if (sfp.isUpdateCommand && sfp.updateError)
-									SafeInvoke (new ShowUpdateErrorsMethod (ShowUpdateErrors), new object[] {sfp}, Int32.MaxValue);
-
-								UpdateFolderStatus (sfp.repository);
+                                UpdateFolderStatus(sfp.repository);
                                 ScmRepository.scmFolderProcesses.RemoveAt(i--);
-							}
-							else if ((folder.Path == sfp.repository.Path) && sfp.isUpdateCommand)
-							{
-								skipUpdateStatus = true;		// Because updating is still in progress
-								ScmRepository.ReadProcessOutput (sfp);
-							}
-						}
+                            }
+                            else if ((folder.Path == sfp.repository.Path) && sfp.isUpdateCommand)
+                            {
+                                skipUpdateStatus = true;        // Because updating is still in progress
+                                ScmRepository.ReadProcessOutput(sfp);
+                            }
+                        }
 
-						while (forcedFolders.Count > 0)
-							UpdateFolderStatus ((ScmRepository) forcedFolders.Dequeue());
+                        while (forcedFolders.Count > 0)
+                            UpdateFolderStatus((ScmRepository)forcedFolders.Dequeue());
 
-						if ((folder.StatusUpdateTime + new TimeSpan (0, 0, folder.GetInterval (formIsActive)) <= DateTime.Now) && !skipUpdateStatus)
-							UpdateFolderStatus (folder);
-					}
+                        if ((folder.StatusUpdateTime + new TimeSpan(0, 0, folder.GetInterval(formIsActive)) <= DateTime.Now) && !skipUpdateStatus)
+                            UpdateFolderStatus(folder);
+                    }
 
-					if (forcedCheckForNewVersion)
-					{
+                    if (forcedCheckForNewVersion)
+                    {
                         forcedCheckForNewVersion = false;
                         lastTimeOfCheckForNewVersion = DateTime.Now;
                         SafeInvoke(new SetStatusBarTextMethod(SetStatusBarText), new object[] { "Checking for new version..." });
                         CheckForNewVersion(true);
                     }
 
-					if (Config.CheckForNewVersion && (lastTimeOfCheckForNewVersion + new TimeSpan(3, 0, 0) < DateTime.Now))
-					{
-						lastTimeOfCheckForNewVersion = DateTime.Now;
-						SafeInvoke (new SetStatusBarTextMethod (SetStatusBarText), new object[] {"Checking for new version..."});
-						CheckForNewVersion (false);
-					}
+                    if (Config.CheckForNewVersion && (lastTimeOfCheckForNewVersion + new TimeSpan(3, 0, 0) < DateTime.Now))
+                    {
+                        lastTimeOfCheckForNewVersion = DateTime.Now;
+                        SafeInvoke(new SetStatusBarTextMethod(SetStatusBarText), new object[] { "Checking for new version..." });
+                        CheckForNewVersion(false);
+                    }
 
-					lock (this)
-					{
-						if (!reupdateStatus)
-						{
-							statusThread = null;
-							break;
-						}
-						else
-							reupdateStatus = false;
-					}
-				}
+                    lock (this)
+                    {
+                        if (!reupdateStatus)
+                        {
+                            statusThread = null;
+                            break;
+                        }
+                        else
+                            reupdateStatus = false;
+                    }
+                }
 
-				SafeInvoke (new MethodInvoker (EndUpdateListView));
-			}
-			catch (ThreadAbortException)
-			{
-				ScmRepository.KillBackgroundProcess();
-			}
-			catch (Exception e)		// Otherwise it will just lost
-			{
-				ShowError ("Error on status thread: " + e);
-				Application.Exit();
-			}
-		}
+                SafeInvoke(new MethodInvoker(EndUpdateListView));
+            }
+            catch (ThreadAbortException)
+            {
+                ScmRepository.KillBackgroundProcess();
+            }
+            catch (Exception e)     // Otherwise it will just lost
+            {
+                ShowError("Error on status thread: " + e);
+                Application.Exit();
+            }
+        }
 
+        /// <summary>
+        /// Executed on working thread
+        /// </summary>
+        private void SafeInvoke(Delegate method)
+        {
+            SafeInvoke(method, null);
+        }
 
-		/// <summary>
-		/// Executed on working thread
-		/// </summary>
-		private void SafeInvoke (Delegate method)
-		{
-			SafeInvoke (method, null);
-		}
+        /// <summary>
+        /// Executed on working thread
+        /// </summary>
+        private void SafeInvoke(Delegate method, object[] args)
+        {
+            SafeInvoke(method, args, 10000);
+        }
 
+        /// <summary>
+        /// Executed on working thread
+        /// </summary>
+        private void SafeInvoke(Delegate method, object[] args, int timeoutMs)
+        {
+            // Begin/EndInvoke usage is workaround for "form.Invoke hungs sometimes" problem
+            repeatInvoke = true;
+            do
+            {
+                IAsyncResult ar;
+                try
+                {
+                    ar = BeginInvoke(new CheckedInvokeMethod(CheckedInvoke), new object[] { method, args });
+                }
+                catch   // Avoid exceptions for not yet created or disposed form
+                {
+                    return;
+                }
 
-		/// <summary>
-		/// Executed on working thread
-		/// </summary>
-		private void SafeInvoke (Delegate method, object[] args)
-		{
-			SafeInvoke (method, args, 10000);
-		}
+                if (ar.AsyncWaitHandle.WaitOne(timeoutMs, false))       // This timeout should be increased when debugging
+                {
+                    try
+                    {
+                        EndInvoke(ar);
+                    }
+                    catch   // Avoid exceptions for not yet created or disposed form
+                    {
+                        return;
+                    }
+                }
+                //				else
+                //					MessageBox.Show ("form.Invoke timeout!!! Repeat = " + repeatInvoke);		// Note: both "True" and "False" where observed
+            }
+            while (repeatInvoke);
+        }
 
+        private void CheckedInvoke(Delegate method, object[] args)
+        {
+            method.DynamicInvoke(args);
+            repeatInvoke = false;
+        }
 
-		/// <summary>
-		/// Executed on working thread
-		/// </summary>
-		private void SafeInvoke (Delegate method, object[] args, int timeoutMs)
-		{
-			// Begin/EndInvoke usage is workaround for "form.Invoke hungs sometimes" problem
-			repeatInvoke = true;
-			do
-			{
-				IAsyncResult ar;
-				try
-				{
-					ar = BeginInvoke (new CheckedInvokeMethod (CheckedInvoke), new object[] {method, args});
-				}
-				catch	// Avoid exceptions for not yet created or disposed form
-				{
-					return;
-				}
-
-				if (ar.AsyncWaitHandle.WaitOne (timeoutMs, false))		// This timeout should be increased when debugging
-				{
-					try
-					{
-						EndInvoke(ar);
-					}
-					catch	// Avoid exceptions for not yet created or disposed form
-					{
-						return;
-					}
-				}
-//				else
-//					MessageBox.Show ("form.Invoke timeout!!! Repeat = " + repeatInvoke);		// Note: both "True" and "False" where observed
-			}
-			while (repeatInvoke);
-		}
-
-
-		private void CheckedInvoke (Delegate method, object[] args)
-		{
-			method.DynamicInvoke (args);
-			repeatInvoke = false;
-		}
-
-
-		/// <summary>
-		/// Executed on working thread
-		/// </summary>
-		private void UpdateFolderStatus (ScmRepository folder)
-		{
-			SafeInvoke (new SetStatusBarTextMethod (SetStatusBarText), new object[] {"Checking '" + folder.Path + "'..."});
-			DateTime statusTime = DateTime.Now;
-			if (sessionEndInProgress) return;		// Need to avoid error on svn.exe invoking
+        /// <summary>
+        /// Executed on working thread
+        /// </summary>
+        private void UpdateFolderStatus(ScmRepository folder)
+        {
+            SafeInvoke(new SetStatusBarTextMethod(SetStatusBarText), new object[] { "Checking '" + folder.Path + "'..." });
+            DateTime statusTime = DateTime.Now;
+            if (sessionEndInProgress) return;		// Need to avoid error on svn.exe invoking
             ScmRepositoryStatusEx status = folder.GetStatus();
-			SafeInvoke (new UpdateListViewMethod (UpdateListView), new object[] {folder, status, statusTime});
-		}
+            SafeInvoke(new UpdateListViewMethod(UpdateListView), new object[] { folder, status, statusTime });
+        }
 
+        private void BeginUpdateListView()
+        {
+            newNonUpdatedFolders.Clear();
+        }
 
-		private void BeginUpdateListView()
-		{
-			newNonUpdatedFolders.Clear();
-		}
+        private void SetStatusBarText(string text)
+        {
+            statusStrip.Items[0].Text = text;
+        }
 
+        private void UpdateListView(ScmRepository folder, ScmRepositoryStatusEx folderStatus, DateTime statusTime)
+        {
+            int i = folders.IndexOf(folder);
+            if (i < 0) return;
 
-		private void SetStatusBarText (string text)
-		{
-			statusStrip.Items[0].Text = text;
-		}
+            if (statusTime < folder.StatusUpdateTime)
+                return;
 
-
-		private void UpdateListView (ScmRepository folder, ScmRepositoryStatusEx folderStatus, DateTime statusTime)
-		{
-			int i = folders.IndexOf (folder);
-			if (i < 0) return;
-
-			if (statusTime < folder.StatusUpdateTime)
-				return;
-
-			if (folder.Status != folderStatus.status)
-			{
+            if (folder.Status != folderStatus.status)
+            {
                 folder.Status = folderStatus.status;
                 listViewFolders.Items[i].ImageKey = folder.IconName;
                 listViewFolders.Items[i].ToolTipText = folderStatus.branchName;
 
                 if ((folderStatus.status == ScmRepositoryStatus.NeedUpdate) ||
-					(folderStatus.status == ScmRepositoryStatus.NeedUpdate_Modified))
-				{
-					newNonUpdatedFolders.Add (folder);
-					UpdateTray (true);
-				}
-				else
-					UpdateTray (false);
+                    (folderStatus.status == ScmRepositoryStatus.NeedUpdate_Modified))
+                {
+                    newNonUpdatedFolders.Add(folder);
+                    UpdateTray(true);
+                }
+                else
+                    UpdateTray(false);
 
                 // Refresh buttons
-                listViewFolders_SelectedIndexChanged (null, null);
-			}
-			else
-				folder.Status = folderStatus.status;		// Update status time only
-		}
+                listViewFolders_SelectedIndexChanged(null, null);
+            }
+            else
+                folder.Status = folderStatus.status;        // Update status time only
+        }
 
+        private void EndUpdateListView()
+        {
+            statusStrip.Items[0].Text = null;
 
-		private void EndUpdateListView()
-		{
-			statusStrip.Items[0].Text = null;
+            // Reduce used memory
+            GC.Collect();
+            EmptyWorkingSet(currentProcessHandle);
 
-			// Reduce used memory
-			GC.Collect();
-			EmptyWorkingSet (currentProcessHandle);
+            if (!pauseTimer.Enabled)
+            {
+                // If the pauseTimer is running it will start up
+                // the statusUpdateTimer once the pause is done.
+                StartTimer();
+            }
+        }
 
-			if (!pauseTimer.Enabled)
-			{
-				// If the pauseTimer is running it will start up
-				// the statusUpdateTimer once the pause is done.
-				StartTimer();
-			}
-		}
+        private void UpdateTray(bool newNonUpdatedFoldersChanged)
+        {
+            // Update tray ToolTip
 
+            const int MaxTrayTextLen = 63 - 4;          // "\n...".Length == 4
+            string updateTrayText = "";
+            string errorTrayText = "";
 
-		private void UpdateTray (bool newNonUpdatedFoldersChanged)
-		{
-			// Update tray ToolTip
+            foreach (ScmRepository folder in folders)
+            {
+                if (!folder.Disable && (folder.Status == ScmRepositoryStatus.Error))
+                {
+                    if (errorTrayText == "")
+                        errorTrayText = "Failed:";
 
-			const int MaxTrayTextLen = 63 - 4;			// "\n...".Length == 4
-			string updateTrayText = "";
-			string errorTrayText = "";
+                    if ((MaxTrayTextLen - errorTrayText.Length) > (1 + folder.VisiblePath.Length))
+                    {
+                        errorTrayText += "\n" + folder.VisiblePath;
+                    }
+                    else if (errorTrayText != "")
+                    {
+                        errorTrayText += "\n...";
+                        break;
+                    }
+                }
+            }
 
-			foreach (ScmRepository folder in folders)
-			{
-				if (!folder.Disable && (folder.Status == ScmRepositoryStatus.Error))
-				{
-					if (errorTrayText == "")
-						errorTrayText = "Failed:";
+            foreach (ScmRepository folder in folders)
+            {
+                if ((folder.Status == ScmRepositoryStatus.NeedUpdate) || (folder.Status == ScmRepositoryStatus.NeedUpdate_Modified))
+                {
+                    if (updateTrayText == "")
+                    {
+                        if ((MaxTrayTextLen - errorTrayText.Length) > 15)   // "\nUpdate needed:".Length == 15
+                            updateTrayText = (errorTrayText != "" ? "\n" : "") + "Update needed:";
+                        else
+                            break;
+                    }
 
-					if ((MaxTrayTextLen - errorTrayText.Length) > (1 + folder.VisiblePath.Length))
-					{
-						errorTrayText += "\n" + folder.VisiblePath;
-					}
-					else if (errorTrayText != "")
-					{
-						errorTrayText += "\n...";
-						break;
-					}
-				}
-			}
+                    if ((MaxTrayTextLen - (updateTrayText.Length + errorTrayText.Length)) > (1 + folder.VisiblePath.Length))
+                    {
+                        updateTrayText += "\n" + folder.VisiblePath;
+                    }
+                    else if (updateTrayText != "")
+                    {
+                        updateTrayText += "\n...";
+                        break;
+                    }
+                }
+            }
 
-			foreach (ScmRepository folder in folders)
-			{
-				if ((folder.Status == ScmRepositoryStatus.NeedUpdate) || (folder.Status == ScmRepositoryStatus.NeedUpdate_Modified))
-				{
-					if (updateTrayText == "")
-					{
-						if ((MaxTrayTextLen - errorTrayText.Length) > 15)	// "\nUpdate needed:".Length == 15
-							updateTrayText = (errorTrayText != "" ? "\n" : "") + "Update needed:";
-						else
-							break;
-					}
+            notifyIcon.Text = errorTrayText + updateTrayText;
 
-					if ((MaxTrayTextLen - (updateTrayText.Length + errorTrayText.Length)) > (1 + folder.VisiblePath.Length))
-					{
-						updateTrayText += "\n" + folder.VisiblePath;
-					}
-					else if (updateTrayText != "")
-					{
-						updateTrayText += "\n...";
-						break;
-					}
-				}
-			}
+            if (notifyIcon.Text == "")
+                notifyIcon.Text = Application.ProductName;
 
-			notifyIcon.Text = errorTrayText + updateTrayText;
+            // Update tray icon
 
-			if (notifyIcon.Text == "")
-				notifyIcon.Text = Application.ProductName;
+            Icon icon;
+            if (folders.ContainsStatus(ScmRepositoryStatus.Error))
+            {
+                icon = trayIcon_Error;
+            }
+            else if ((folders.ContainsStatus(ScmRepositoryStatus.NeedUpdate)) ||
+                (folders.ContainsStatus(ScmRepositoryStatus.NeedUpdate_Modified)))
+            {
+                icon = trayIcon_NeedUpdate;
+            }
+            else if (folders.ContainsStatus(ScmRepositoryStatus.Unknown))
+            {
+                icon = trayIcon_Unknown;
+            }
+            else if ((folders.ContainsStatus(ScmRepositoryStatus.UpToDate)) ||
+                (folders.ContainsStatus(ScmRepositoryStatus.UpToDate_Modified)))
+            {
+                icon = trayIcon_UpToDate;
+            }
+            else
+                icon = trayIcon_Unknown;
 
-			// Update tray icon
+            if (icon != Icon)
+                Icon = notifyIcon.Icon = icon;
 
-			Icon icon;
-			if (folders.ContainsStatus (ScmRepositoryStatus.Error))
-			{
-				icon = trayIcon_Error;
-			}
-			else if ((folders.ContainsStatus (ScmRepositoryStatus.NeedUpdate)) ||
-				(folders.ContainsStatus (ScmRepositoryStatus.NeedUpdate_Modified)))
-			{
-				icon = trayIcon_NeedUpdate;
-			}
-			else if (folders.ContainsStatus (ScmRepositoryStatus.Unknown))
-			{
-				icon = trayIcon_Unknown;
-			}
-			else if ((folders.ContainsStatus (ScmRepositoryStatus.UpToDate)) ||
-				(folders.ContainsStatus (ScmRepositoryStatus.UpToDate_Modified)))
-			{
-				icon = trayIcon_UpToDate;
-			}
-			else
-				icon = trayIcon_Unknown;
+            // Update menu
 
-			if (icon != Icon)
-				Icon = notifyIcon.Icon = icon;
+            if ((folders.ContainsStatus(ScmRepositoryStatus.NeedUpdate)
+                || folders.ContainsStatus(ScmRepositoryStatus.NeedUpdate_Modified))
+                && !Config.ChangeLogBeforeUpdate)
+            {
+                updateAllToolStripMenuItem.Enabled = true;
+                menuItem_UpdateAll.Enabled = true;
+            }
+            else
+            {
+                updateAllToolStripMenuItem.Enabled = false;
+                menuItem_UpdateAll.Enabled = false;
+            }
 
+            if (newNonUpdatedFoldersChanged)
+            {
+                // Update tray balloon
 
-			// Update menu
+                if (newNonUpdatedFolders.Count > 0)
+                {
+                    string[] nonUpdatedFolders = new string[newNonUpdatedFolders.Count];
+                    for (int i = 0; i < newNonUpdatedFolders.Count; i++)
+                        nonUpdatedFolders[i] = listViewFolders.Items[folders.IndexOf(newNonUpdatedFolders[i])].Text;
 
-			if ((folders.ContainsStatus (ScmRepositoryStatus.NeedUpdate)
-				|| folders.ContainsStatus (ScmRepositoryStatus.NeedUpdate_Modified))
-				&& !Config.ChangeLogBeforeUpdate)
-			{
-				updateAllToolStripMenuItem.Enabled = true;
-				menuItem_UpdateAll.Enabled = true;
-			}
-			else
-			{
-				updateAllToolStripMenuItem.Enabled = false;
-				menuItem_UpdateAll.Enabled = false;
-			}
+                    firstBalloonPath = nonUpdatedFolders[0];
 
-			if (newNonUpdatedFoldersChanged)
-			{
-				// Update tray balloon
+                    string balloonMessage = String.Join(Environment.NewLine, nonUpdatedFolders);
+                    notifyIcon.ShowBalloonTip(Config.ShowBalloonInterval, "Update needed", balloonMessage, ToolTipIcon.Info);
+                }
+            }
+        }
 
-				if (newNonUpdatedFolders.Count > 0)
-				{
-					string[] nonUpdatedFolders = new string[newNonUpdatedFolders.Count];
-					for (int i = 0; i < newNonUpdatedFolders.Count; i++)
-						nonUpdatedFolders[i] = listViewFolders.Items[folders.IndexOf (newNonUpdatedFolders[i])].Text;
+        private void ShowUpdateErrors(ScmRepositoryProcess sfp)
+        {
+            new UpdateLogsForm(sfp).ShowDialog(this);
+        }
 
-					firstBalloonPath = nonUpdatedFolders[0];
+        private void OnErrorAdded(string path, string error)
+        {
+            SafeInvoke(new UpdateErrorLogMethod(UpdateErrorLog), new object[] { path, error });
+        }
 
-					string balloonMessage = String.Join (Environment.NewLine, nonUpdatedFolders);
-					notifyIcon.ShowBalloonTip (Config.ShowBalloonInterval, "Update needed", balloonMessage, ToolTipIcon.Info);
-				}
-			}
-		}
+        public void UpdateErrorLog(string path, string error)
+        {
+            statusStrip.Items[1].DisplayStyle = ToolStripItemDisplayStyle.Image;
 
+            if (path == null)
+                path = "Checking for new version";                          // TODO: Strange realization
 
-		private void ShowUpdateErrors (ScmRepositoryProcess sfp)
-		{
-			new UpdateLogsForm (sfp).ShowDialog (this);
-		}
+            string s = "[" + DateTime.Now + "] " + Environment.NewLine +
+                path + ":" + Environment.NewLine +
+                error.Replace("\n", Environment.NewLine) +
+                Environment.NewLine + Environment.NewLine;
 
+            errorLog[path] = s;
+        }
 
-		private void OnErrorAdded (string path, string error)
-		{
-			SafeInvoke (new UpdateErrorLogMethod (UpdateErrorLog), new object[] {path, error});
-		}
+        private void toolStripStatusLabel2_Click(object sender, EventArgs e)
+        {
+            if ((errorLog.Count > 0) && (new ErrorLogForm(errorLog).ShowDialog(this) == DialogResult.Abort))
+            {
+                statusStrip.Items[1].DisplayStyle = ToolStripItemDisplayStyle.None;
+                errorLog.Clear();
+            }
+        }
 
+        //////////////////////////////////////////////////////////////////////////////
 
-		public void UpdateErrorLog (string path, string error)
-		{
-			statusStrip.Items[1].DisplayStyle = ToolStripItemDisplayStyle.Image;
+        private const int WM_QUERYENDSESSION = 0x11;
+        private const int WM_ENDSESSION = 0x16;
 
-			if (path == null)
-				path = "Checking for new version";							// TODO: Strange realization
+        private static bool sessionEndInProgress;
 
-			string s = "[" + DateTime.Now + "] " + Environment.NewLine +
-				path + ":" + Environment.NewLine +
-				error.Replace ("\n", Environment.NewLine) +
-				Environment.NewLine + Environment.NewLine;
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_QUERYENDSESSION)
+                sessionEndInProgress = true;
 
-			errorLog[path] = s;
-		}
+            if ((m.Msg == WM_ENDSESSION) && ((int)m.WParam == 0))   // if "session end" was canceled (by some other reasons)
+                sessionEndInProgress = false;
 
+            base.WndProc(ref m);
+        }
 
-		private void toolStripStatusLabel2_Click(object sender, EventArgs e)
-		{
-			if ((errorLog.Count > 0) && (new ErrorLogForm (errorLog).ShowDialog (this) == DialogResult.Abort))
-			{
-				statusStrip.Items[1].DisplayStyle = ToolStripItemDisplayStyle.None;
-				errorLog.Clear();
-			}
-		}
+        //////////////////////////////////////////////////////////////////////////////
 
-
-		//////////////////////////////////////////////////////////////////////////////
-
-		private const int WM_QUERYENDSESSION = 0x11;
-		private const int WM_ENDSESSION = 0x16;
-
-		private static bool sessionEndInProgress;
-
-
-		protected override void WndProc (ref Message m)
-		{
-			if (m.Msg == WM_QUERYENDSESSION)
-				sessionEndInProgress = true;
-
-			if ((m.Msg == WM_ENDSESSION) && ((int) m.WParam == 0))	// if "session end" was canceled (by some other reasons)
-				sessionEndInProgress = false;
-
-			base.WndProc (ref m);
-		}
-
-		//////////////////////////////////////////////////////////////////////////////
-
-		[STAThread]
-		private static void Main (string[] args)
-		{
-			try
-			{
-				if ((args.Length == 1) && (args[0] == "start"))		// Used to start application during install
-				{
-					ProcessStartInfo psi = new ProcessStartInfo
-					{
-						FileName = Application.ExecutablePath,
-						UseShellExecute = false,
-						WorkingDirectory = Path.GetDirectoryName (Application.ExecutablePath)
-					};
-					Process.Start (psi);
-					return;
-				}
+        [STAThread]
+        private static void Main(string[] args)
+        {
+            try
+            {
+                if ((args.Length == 1) && (args[0] == "start"))     // Used to start application during install
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo
+                    {
+                        FileName = Application.ExecutablePath,
+                        UseShellExecute = false,
+                        WorkingDirectory = Path.GetDirectoryName(Application.ExecutablePath)
+                    };
+                    Process.Start(psi);
+                    return;
+                }
 
                 const string projectName = "scm-notifier";
                 const string directoryName = projectName;
-				const string iniFileName = projectName + ".ini";
+                const string iniFileName = projectName + ".ini";
                 string appPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string configPath = Path.Combine(appPath, directoryName);
                 string iniPath = Path.Combine(appPath, directoryName + @"\" + iniFileName);
 
-                if (!File.Exists(iniPath)) {
+                if (!File.Exists(iniPath))
+                {
                     if (!File.Exists(configPath))
                         Directory.CreateDirectory(configPath);
 
                     // migrate from old config file
                     string oldPath = Path.Combine(appPath, "SCM_Notifier.ini");
-                    if (File.Exists(oldPath)) {
+                    if (File.Exists(oldPath))
+                    {
                         File.Copy(oldPath, iniPath);
                         File.Delete(oldPath);
                     }
@@ -1421,47 +1370,44 @@ namespace pocorall.SCM_Notifier
 
                 Config.Init(iniPath);
 
-				if (!Config.IsSettingsOK())
-					if (new SettingsForm().ShowDialog() != DialogResult.OK)
-						return;
+                if (!Config.IsSettingsOK())
+                    if (new SettingsForm().ShowDialog() != DialogResult.OK)
+                        return;
 
-				MainForm form = new MainForm();
+                MainForm form = new MainForm();
 
-				Thread.CurrentThread.Name = "Main";
-				Application.ThreadException += OnThreadException;
-				Application.Run (form);
+                Thread.CurrentThread.Name = "Main";
+                Application.ThreadException += OnThreadException;
+                Application.Run(form);
 
-				lock (form)
-				{
-					if (statusThread != null)
-						statusThread.Abort();
-				}
-			}
-			catch (Exception e)
-			{
-				FatalError (e);
-			}
-		}
+                lock (form)
+                {
+                    if (statusThread != null)
+                        statusThread.Abort();
+                }
+            }
+            catch (Exception e)
+            {
+                FatalError(e);
+            }
+        }
 
+        private static void OnThreadException(object sender, ThreadExceptionEventArgs t)
+        {
+            FatalError(t.Exception);
+            Application.Exit();
+        }
 
-		private static void OnThreadException (object sender, ThreadExceptionEventArgs t)
-		{
-			FatalError (t.Exception);
-			Application.Exit();
-		}
+        private static void FatalError(Exception e)
+        {
+            ShowError(e.ToString());
+            Config.WriteLog("Error", e.ToString());
+        }
 
-
-		private static void FatalError (Exception e)
-		{
-			ShowError (e.ToString ());
-			Config.WriteLog ("Error", e.ToString ());
-		}
-
-
-		private static void ShowError (string s)
-		{
-			MessageBox.Show (s, "SCM Notifier", MessageBoxButtons.OK, MessageBoxIcon.Error);
-		}
+        private static void ShowError(string s)
+        {
+            MessageBox.Show(s, "SCM Notifier", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
 
         private void listViewFolders_DragEnter(object sender, DragEventArgs e)
         {
