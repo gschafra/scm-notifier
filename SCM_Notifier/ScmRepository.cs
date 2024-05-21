@@ -25,6 +25,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -212,7 +213,7 @@ namespace pocorall.SCM_Notifier
             if (handler != null) handler(path, error);
         }
 
-        public static ArrayList scmFolderProcesses = ArrayList.Synchronized(new ArrayList());
+        public static List<ScmRepositoryProcess> scmFolderProcesses = new List<ScmRepositoryProcess>();
         private static Process backgroundProcess;
 
         protected static ExecuteResult ExecuteProcess(string executionFile, string workingPath, string arguments, bool waitForExit, bool lowPriority)
@@ -249,8 +250,6 @@ namespace pocorall.SCM_Notifier
             });
 
             er.process.Start();
-
-            //er.process = Process.Start(psi);
 
             if (waitForExit) backgroundProcess = er.process;
 

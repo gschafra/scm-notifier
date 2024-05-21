@@ -970,7 +970,7 @@ namespace pocorall.SCM_Notifier
                         // Check commit and update processes for finishing
                         for (int i = 0; i < ScmRepository.scmFolderProcesses.Count; i++)
                         {
-                            var sfp = (ScmRepositoryProcess)ScmRepository.scmFolderProcesses[i];
+                            var sfp = ScmRepository.scmFolderProcesses[i];
 
                             if (sfp.process.HasExited)
                             {
